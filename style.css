@@ -1,0 +1,215 @@
+/* style.css */
+/* Note: Tailwind CSS is included via CDN in index.html, so these are custom styles or overrides. */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #111827; /* Tailwind: bg-gray-900 */
+    color: #f3f4f6; /* Tailwind: text-gray-100 */
+    display: flex;
+    justify-content: center;
+    align-items: flex-start; /* Align to top for scrolling on smaller viewports */
+    min-height: 100vh;
+    padding: 2rem; /* Tailwind: p-8 */
+    overflow-y: auto; /* Enable vertical scroll if content overflows */
+}
+
+.hub-container {
+    background-color: #1f2937; /* Tailwind: bg-gray-800 */
+    border-radius: 0.75rem; /* Tailwind: rounded-xl */
+    padding: 2rem; /* Tailwind: p-8 */
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); /* Tailwind: shadow-2xl */
+    width: 100%;
+    max-width: 72rem; /* Tailwind: max-w-6xl */
+}
+
+.program-card {
+    background-color: #374151; /* Tailwind: bg-gray-700 */
+    border-radius: 0.5rem; /* Tailwind: rounded-lg */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    overflow: hidden; /* To ensure image corners are rounded if you use <img> */
+    display: flex;
+    flex-direction: column;
+    position: relative; /* For absolute positioning of action buttons */
+}
+
+.program-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2), 0 4px 6px -4px rgba(0,0,0,0.1); /* Enhanced shadow on hover */
+}
+
+.program-icon-placeholder {
+    background-color: #4b5563; /* Tailwind: bg-gray-600 */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #9ca3af; /* Tailwind: text-gray-400 */
+    font-size: 2.5rem; /* Tailwind: text-4xl or text-5xl approx */
+    height: 10rem; /* Tailwind: h-40 */
+}
+
+.program-icon-placeholder svg {
+    width: 50px; /* Tailwind: w-12 or w-14 approx */
+    height: 50px; /* Tailwind: h-12 or h-14 approx */
+}
+
+/* Base styles for various buttons, can be extended by Tailwind classes in HTML */
+.header-button, .launch-button, .action-button, .form-button {
+    color: white;
+    padding: 0.5rem 1rem; /* Tailwind: py-2 px-4 */
+    border-radius: 0.375rem; /* Tailwind: rounded-md */
+    text-align: center;
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+    border: none;
+    display: inline-flex; 
+    align-items: center; 
+    gap: 0.5rem; /* Tailwind: space-x-2 approx */
+}
+
+.launch-button { background-color: #3b82f6; } /* Tailwind: bg-blue-500 */
+.launch-button:hover { background-color: #2563eb; } /* Tailwind: hover:bg-blue-600 */
+
+.header-button.bg-green-500:hover { background-color: #15803d; } /* Tailwind: hover:bg-green-700 */
+.header-button.bg-yellow-500:hover { background-color: #ca8a04; } /* Tailwind: hover:bg-yellow-600 */
+.header-button.bg-sky-500:hover { background-color: #0369a1; } /* Tailwind: hover:bg-sky-700 */
+
+.form-button-secondary {
+    background-color: #4b5563; /* Tailwind: bg-gray-600 */
+}
+.form-button-secondary:hover {
+    background-color: #525f70; /* Slightly lighter gray on hover */
+}
+
+.card-actions {
+    position: absolute;
+    top: 0.5rem; /* Tailwind: top-2 */
+    right: 0.5rem; /* Tailwind: right-2 */
+    display: flex;
+    gap: 0.5rem; /* Tailwind: space-x-2 */
+}
+
+.action-button {
+    background-color: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(5px);
+    padding: 0.5rem; /* Tailwind: p-2 */
+    border-radius: 50%; /* Tailwind: rounded-full */
+    width: 2.25rem; /* Tailwind: w-9 */
+    height: 2.25rem; /* Tailwind: h-9 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.action-button:hover { background-color: rgba(255, 255, 255, 0.2); }
+.action-button i { font-size: 0.875rem; } /* Tailwind: text-sm */
+
+/* Modal styles */
+.modal {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.7); /* Darker backdrop */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    padding: 1rem; /* Padding for smaller screens */
+}
+
+.modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background-color: #1f2937; /* Tailwind: bg-gray-800 */
+    padding: 2rem; /* Tailwind: p-8 */
+    border-radius: 0.5rem; /* Tailwind: rounded-lg */
+    width: 90%;
+    max-width: 600px; /* Custom max-width */
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2); /* Enhanced shadow */
+    max-height: 90vh; 
+    overflow-y: auto; 
+}
+
+.modal-content h2, .modal-content h3, .modal-content h4 { color: #e5e7eb; } /* Tailwind: text-gray-200 */
+.modal-content p, .modal-content li { color: #d1d5db; } /* Tailwind: text-gray-300 */
+.modal-content strong { color: #93c5fd; } /* Tailwind: text-blue-300 */
+.modal-content code {
+    background-color: #374151; /* Tailwind: bg-gray-700 */
+    color: #f3f4f6; /* Tailwind: text-gray-100 */
+    padding: 0.2em 0.4em;
+    border-radius: 0.25rem; /* Tailwind: rounded-sm */
+    font-size: 0.9em;
+}
+.modal-content ul { margin-left: 1.5rem; } /* Tailwind: ml-6 */
+
+
+.modal-close-button { background-color: #ef4444; } /* Tailwind: bg-red-500 */
+.modal-close-button:hover { background-color: #dc2626; } /* Tailwind: hover:bg-red-600 */
+
+.form-button-save { background-color: #10b981; } /* Tailwind: bg-green-500 */
+.form-button-save:hover { background-color: #059669; } /* Tailwind: hover:bg-green-600 */
+
+/* Form input styles */
+.form-input, .form-textarea, .form-select {
+    width: 100%;
+    padding: 0.75rem; /* Tailwind: p-3 */
+    margin-bottom: 1rem; /* Tailwind: mb-4 */
+    border-radius: 0.375rem; /* Tailwind: rounded-md */
+    background-color: #374151; /* Tailwind: bg-gray-700 */
+    border: 1px solid #4b5563; /* Tailwind: border-gray-600 */
+    color: #f3f4f6; /* Tailwind: text-gray-100 */
+}
+
+.form-input:focus, .form-textarea:focus, .form-select:focus {
+    outline: none;
+    border-color: #3b82f6; /* Tailwind: focus:border-blue-500 */
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); /* Tailwind: focus:ring-2 focus:ring-blue-500/50 */
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem; /* Tailwind: mb-2 */
+    font-weight: 500; /* Tailwind: font-medium */
+}
+
+/* SortableJS ghost element style */
+.sortable-ghost {
+    opacity: 0.4;
+    background: #4b5563; /* Tailwind: bg-gray-600 */
+}
+
+/* Toast notification styles */
+.toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #10b981; /* Tailwind: bg-green-500 */
+    color: white;
+    padding: 1rem 1.5rem; /* Tailwind: py-4 px-6 */
+    border-radius: 0.375rem; /* Tailwind: rounded-md */
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1); /* Tailwind: shadow-lg */
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+}
+
+.toast.show {
+    opacity: 1;
+}
+
+.toast.error {
+    background-color: #ef4444; /* Tailwind: bg-red-500 */
+}
+
+.launch-command-note {
+    font-size: 0.875rem; /* Tailwind: text-sm */
+    color: #fcd34d; /* Tailwind: text-amber-400 */
+    margin-top: -0.5rem; /* Tailwind: -mt-2 (approx) */
+    margin-bottom: 1rem; /* Tailwind: mb-4 */
+}
