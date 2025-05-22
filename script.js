@@ -10,10 +10,10 @@ const CreationHubApp = (() => {
     const dom = {
         programListContainer: null,
         emptyStateMessage: null,
-        launchModal: null,
-        modalProgramNameLaunch: null,
-        modalProgramDescriptionLaunch: null,
-        closeLaunchModalButton: null,
+        // launchModal: null, // No longer needed if simulation modal is removed
+        // modalProgramNameLaunch: null, // No longer needed
+        // modalProgramDescriptionLaunch: null, // No longer needed
+        // closeLaunchModalButton: null, // No longer needed
         addEditModal: null,
         modalTitle: null,
         addEditForm: null,
@@ -41,10 +41,10 @@ const CreationHubApp = (() => {
     function cacheDomElements() {
         dom.programListContainer = document.getElementById('program-list');
         dom.emptyStateMessage = document.getElementById('emptyStateMessage');
-        dom.launchModal = document.getElementById('launchModal');
-        dom.modalProgramNameLaunch = document.getElementById('modalProgramNameLaunch');
-        dom.modalProgramDescriptionLaunch = document.getElementById('modalProgramDescriptionLaunch');
-        dom.closeLaunchModalButton = document.getElementById('closeLaunchModalButton');
+        // dom.launchModal = document.getElementById('launchModal'); // Remove
+        // dom.modalProgramNameLaunch = document.getElementById('modalProgramNameLaunch'); // Remove
+        // dom.modalProgramDescriptionLaunch = document.getElementById('modalProgramDescriptionLaunch'); // Remove
+        // dom.closeLaunchModalButton = document.getElementById('closeLaunchModalButton'); // Remove
         dom.addEditModal = document.getElementById('addEditModal');
         dom.modalTitle = document.getElementById('modalTitle');
         dom.addEditForm = document.getElementById('addEditForm');
@@ -116,10 +116,10 @@ const CreationHubApp = (() => {
                 showToast("Error loading data from LocalStorage. Data might be corrupted.", true);
             }
         } else {
-            // Default programs for first-time users
+            // Default programs for first-time users - MODIFIED TO USE URLS
             myPrograms = [
-                { id: "prog_default_1", name: "Example: My Game Project", description: "A fun game I'm working on.", iconType: "game", launchCommand: "\"C:\\Program Files\\ExampleGame\\game.exe\"" },
-                { id: "prog_default_2", name: "Example: Text Editor", description: "For notes and code.", iconType: "file-text", launchCommand: "notepad.exe" },
+                { id: "prog_default_1", name: "Example: Google", description: "A popular search engine.", iconType: "chart", launchCommand: "https://www.google.com" },
+                { id: "prog_default_2", name: "Example: Developer Docs", description: "Useful documentation.", iconType: "file-text", launchCommand: "https://developer.mozilla.org" },
             ];
         }
     }
@@ -183,7 +183,9 @@ const CreationHubApp = (() => {
             const launchButton = document.createElement('button');
             launchButton.className = 'launch-button mt-auto';
             launchButton.innerHTML = '<i class="fas fa-play mr-2"></i>Open';
-            launchButton.onclick = (e) => { e.stopPropagation(); showLaunchSimulationModal(program); };
+            // MODIFIED: The function name is the same, but its behavior will change.
+            launchButton.onclick = (e) => { e.stopPropagation(); openProgramLink(program); };
+
 
             infoDiv.appendChild(name);
             infoDiv.appendChild(description);
@@ -196,16 +198,37 @@ const CreationHubApp = (() => {
         saveDataToLocalStorage();
     }
 
-    // --- MODAL HANDLING ---
+    // --- MODAL HANDLING & URL OPENING ---
     /**
-     * Shows the launch simulation modal.
-     * @param {object} program - The program object to simulate launching.
+     * Opens the program's launch command (expected to be a URL) in a new tab.
+     * @param {object} program - The program object containing the launchCommand as a URL.
      */
-    function showLaunchSimulationModal(program) {
-        dom.modalProgramNameLaunch.textContent = `Simulating: Launching ${program.name}...`;
-        dom.modalProgramDescriptionLaunch.textContent = `Command: ${program.launchCommand}`;
-        dom.launchModal.classList.add('active');
+    function openProgramLink(program) { // Renamed from showLaunchSimulationModal for clarity
+        if (program && program.launchCommand && program.launchCommand.trim() !== "") {
+            let url = program.launchCommand.trim();
+
+            // Prepend https:// if the URL doesn't have a scheme (e.g., http, https, mailto)
+            // and is not a protocol-relative URL (starting with //).
+            if (!url.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:/i) && !url.startsWith('//')) {
+                url = 'https://' + url;
+            }
+
+            try {
+                const newTab = window.open(url, '_blank', 'noopener,noreferrer');
+                if (!newTab || newTab.closed || typeof newTab.closed === 'undefined') {
+                    // This can happen if a popup blocker prevents opening the new tab
+                    showToast('Popup blocked. Please allow popups for this site to open links.', true);
+                }
+            } catch (e) {
+                console.error("Error opening URL:", e, "URL was:", url);
+                showToast(`Could not open URL: '${url}'. Please check the address.`, true);
+            }
+        } else {
+            showToast("Launch command is empty. Please provide a URL.", true);
+            console.warn("Launch command is empty for program:", program ? program.name : "Unknown program");
+        }
     }
+
 
     /**
      * Opens the Add/Edit program modal.
@@ -215,7 +238,7 @@ const CreationHubApp = (() => {
     function openAddEditModal(mode, programId = null) {
         dom.addEditForm.reset();
         dom.programIdInput.value = '';
-        dom.programFileInputForPreFill.value = '';
+        dom.programFileInputForPreFill.value = ''; // Clear file input for pre-fill
         if (mode === 'edit' && programId) {
             const program = myPrograms.find(p => p.id === programId);
             if (program) {
@@ -227,6 +250,7 @@ const CreationHubApp = (() => {
                 dom.programIconTypeInput.value = program.iconType;
             } else {
                 console.error("Program not found for editing:", programId);
+                showToast("Error: Program not found for editing.", true);
                 return;
             }
         } else {
@@ -237,8 +261,6 @@ const CreationHubApp = (() => {
 
     /** Closes the Add/Edit modal. */
     function closeAddEditModal() { dom.addEditModal.classList.remove('active'); }
-    /** Closes the Launch Simulation modal. */
-    function closeLaunchModal() { dom.launchModal.classList.remove('active'); }
     /** Closes the Help modal. */
     function closeHelpModal() { dom.helpModal.classList.remove('active'); }
     /** Shows the Help modal. */
@@ -255,18 +277,30 @@ const CreationHubApp = (() => {
         const id = dom.programIdInput.value || `prog_${Date.now()}`;
         const name = dom.programNameInput.value.trim();
         const description = dom.programDescriptionInput.value.trim();
-        const launchCommand = dom.programLaunchCommandInput.value.trim();
+        const launchCommand = dom.programLaunchCommandInput.value.trim(); // This is now a URL
         const iconType = dom.programIconTypeInput.value;
 
         if (!name || !description || !launchCommand) {
-            showToast("Please fill in all required fields.", true);
+            showToast("Please fill in Name, Description, and Launch URL.", true);
             return;
         }
+        // Basic URL validation (optional, browser handles most errors with window.open)
+        // if (!launchCommand.toLowerCase().startsWith('http://') && !launchCommand.toLowerCase().startsWith('https://') && !launchCommand.startsWith('//') && !launchCommand.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:/i) ) {
+        // if (!launchCommand.includes('.') && !launchCommand.includes(':')) { // Very basic heuristic
+        // showToast("Please enter a valid URL for the Launch Command (e.g., https://example.com).", true);
+        // return;
+        // }
+        // }
+
         const programData = { id, name, description, launchCommand, iconType };
         if (dom.programIdInput.value) { // Editing
             const index = myPrograms.findIndex(p => p.id === id);
-            if (index !== -1) myPrograms[index] = programData;
-            showToast("Program updated successfully!");
+            if (index !== -1) {
+                myPrograms[index] = programData;
+                showToast("Program updated successfully!");
+            } else {
+                 showToast("Error updating: Program ID not found.", true);
+            }
         } else { // Adding
             myPrograms.push(programData);
             showToast("Program added successfully!");
@@ -345,7 +379,7 @@ const CreationHubApp = (() => {
                             item.hasOwnProperty('id') &&
                             item.hasOwnProperty('name') &&
                             item.hasOwnProperty('description') &&
-                            item.hasOwnProperty('launchCommand') &&
+                            item.hasOwnProperty('launchCommand') && // This will now be expected to be a URL
                             item.hasOwnProperty('iconType')
                         );
                         if (isValid || importedData.length === 0) {
@@ -355,7 +389,7 @@ const CreationHubApp = (() => {
                                 showToast("Data imported successfully!");
                             }
                         } else {
-                            showToast("Invalid file format. Ensure items have id, name, description, launchCommand, and iconType.", true);
+                            showToast("Invalid file format. Ensure items have id, name, description, launchCommand (URL), and iconType.", true);
                         }
                     } else {
                         showToast("Invalid file format. The file should contain a JSON array.", true);
@@ -364,7 +398,7 @@ const CreationHubApp = (() => {
                     console.error("Error importing data:", error);
                     showToast("Error reading or parsing the file. Make sure it's a valid JSON.", true);
                 } finally {
-                    dom.importFileInput.value = '';
+                    dom.importFileInput.value = ''; // Reset file input
                 }
             };
             reader.readAsText(file);
@@ -373,6 +407,8 @@ const CreationHubApp = (() => {
 
     /**
      * Handles pre-filling form fields from a selected file.
+     * The launch command will get the filename, which is likely not a URL.
+     * User will need to manually change it to a URL.
      * @param {Event} event - The file input change event.
      */
     function preFillFormFromFile(event) {
@@ -380,10 +416,10 @@ const CreationHubApp = (() => {
         if (file) {
             const fileNameWithoutExtension = file.name.split('.').slice(0, -1).join('.') || file.name;
             dom.programNameInput.value = fileNameWithoutExtension;
-            dom.programLaunchCommandInput.value = file.name;
-            showToast("Fields pre-filled. Please VERIFY the Launch Command with the full path or correct command.", false);
+            dom.programLaunchCommandInput.value = file.name; // This sets filename, user should change to URL
+            showToast("Fields pre-filled. Please REPLACE the Launch Command with a valid URL.", false);
         }
-        dom.programFileInputForPreFill.value = '';
+        dom.programFileInputForPreFill.value = ''; // Reset file input
     }
 
     // --- EVENT LISTENERS ---
@@ -391,7 +427,7 @@ const CreationHubApp = (() => {
      * Attaches all necessary event listeners.
      */
     function bindEventListeners() {
-        dom.closeLaunchModalButton.onclick = closeLaunchModal;
+        // dom.closeLaunchModalButton.onclick = closeLaunchModal; // Remove
         dom.addNewProgramButton.onclick = () => openAddEditModal('add');
         dom.cancelAddEditButton.onclick = closeAddEditModal;
         dom.addEditForm.onsubmit = handleAddEditFormSubmit;
@@ -405,7 +441,7 @@ const CreationHubApp = (() => {
 
         // Global click listener for closing modals
         window.onclick = (event) => {
-            if (event.target == dom.launchModal) closeLaunchModal();
+            // if (event.target == dom.launchModal) closeLaunchModal(); // Remove
             if (event.target == dom.addEditModal) closeAddEditModal();
             if (event.target == dom.helpModal) closeHelpModal();
         };

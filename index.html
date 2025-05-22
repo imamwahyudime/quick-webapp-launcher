@@ -42,24 +42,16 @@
          <p id="emptyStateMessage" class="text-center text-gray-500 py-10 hidden">Your hub is empty. Click "Add New" to get started!</p>
     </div>
 
-    <div id="launchModal" class="modal">
-        <div class="modal-content">
-            <h2 id="modalProgramNameLaunch" class="text-2xl font-semibold mb-4"></h2>
-            <p id="modalProgramDescriptionLaunch" class="text-gray-300 mb-6"></p>
-            <p class="text-sm text-yellow-400 mb-4">(This is a simulation. In a real webapp, this would launch the program.)</p>
-            <button id="closeLaunchModalButton" class="form-button modal-close-button">Close</button>
-        </div>
-    </div>
-
     <div id="addEditModal" class="modal">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-6">
                 <h2 id="modalTitle" class="text-2xl font-semibold"></h2>
                 <button type="button" id="selectFileForPreFillButton" class="form-button form-button-secondary text-sm">
-                    <i class="fas fa-file-alt"></i> Select File to Pre-fill
+                    <i class="fas fa-file-alt"></i> Select File to Pre-fill Name
                 </button>
             </div>
-            <input type="file" id="programFileInput" class="hidden" /> <form id="addEditForm">
+            <input type="file" id="programFileInput" class="hidden" />
+            <form id="addEditForm">
                 <input type="hidden" id="programIdInput">
                 <div>
                     <label for="programNameInput" class="form-label">Program Name:</label>
@@ -70,9 +62,9 @@
                     <textarea id="programDescriptionInput" class="form-textarea" rows="3" required></textarea>
                 </div>
                 <div>
-                    <label for="programLaunchCommandInput" class="form-label">Launch Command:</label>
-                    <input type="text" id="programLaunchCommandInput" class="form-input" placeholder="e.g., C:\path\to\program.exe or my_app_command" required>
-                    <p class="launch-command-note">Important: Verify this is the correct full path or command. See Help for details.</p>
+                    <label for="programLaunchCommandInput" class="form-label">Launch Command (URL):</label>
+                    <input type="text" id="programLaunchCommandInput" class="form-input" placeholder="e.g., https://www.example.com or example.com" required>
+                    <p class="launch-command-note">Enter the full URL you want to open (e.g., https://www.mysite.com). If you pre-fill from a file, ensure you replace the filename here with a valid URL.</p>
                 </div>
                 <div>
                     <label for="programIconTypeInput" class="form-label">Icon Type:</label>
@@ -99,73 +91,33 @@
             <h2 class="text-2xl font-semibold mb-4 text-center">Creation Hub Help</h2>
 
             <div class="space-y-3 text-sm mb-6">
-                <p>Welcome to your Creation Hub! This is your personal space to organize and quickly access all your projects.</p>
+                <p>Welcome to your Creation Hub! This is your personal space to organize and quickly access all your projects by launching them as URLs.</p>
             </div>
 
-            <h3 class="text-xl font-semibold mb-3">Understanding the "Launch Command"</h3>
+            <h3 class="text-xl font-semibold mb-3">Understanding the "Launch Command (URL)"</h3>
             <div class="space-y-3 text-sm mb-6">
-                <p>The <strong>Launch Command</strong> is the most crucial piece of information for each program. It's the exact instruction your computer needs to find and run your chosen program or script. Think of it like a very specific address for your application.</p>
-                <p>If this command is incorrect, the Hub won't be able to open your program (though in this web demo, it only simulates launching).</p>
-                <p>When you use the "Select File to Pre-fill" option, it will put the filename in the Launch Command field. <strong>This is often NOT enough.</strong> You usually need the <strong>full path</strong> to the file, or a command that's recognized by your system's command line (Terminal or Command Prompt).</p>
-            </div>
-
-            <h4 class="text-lg font-semibold mb-2">How to Find the Launch Command:</h4>
-            <div class="space-y-4 text-sm mb-6">
-                <div>
-                    <strong class="text-base">For Windows (.exe files, .bat scripts):</strong>
-                    <ul class="list-disc list-inside space-y-1 mt-1">
-                        <li><strong>Find the File:</strong> Locate the program's main executable file (usually ends in <code>.exe</code>) or your script file (e.g., <code>.bat</code>, <code>.py</code>) in File Explorer.</li>
-                        <li><strong>Copy Path:</strong>
-                            <ul>
-                                <li>Hold down the <strong>Shift key</strong>, then <strong>right-click</strong> on the file.</li>
-                                <li>Select "<strong>Copy as path</strong>".</li>
-                            </ul>
-                        </li>
-                        <li><strong>Paste:</strong> Paste this copied path into the "Launch Command" field. It will look something like: <code>"C:\Program Files\MyAwesomeApp\MyApp.exe"</code> (the quotes are important if the path has spaces).</li>
-                        <li><strong>For Python scripts:</strong> You might need <code>python "C:\MyScripts\myscript.py"</code> or if Python is in your PATH, just <code>python myscript.py</code> (if the script is also in a PATH directory or you run the Hub from the script's directory).</li>
-                    </ul>
-                </div>
-
-                <div>
-                    <strong class="text-base">For macOS (.app applications, scripts):</strong>
-                    <ul class="list-disc list-inside space-y-1 mt-1">
-                        <li><strong>Applications (.app):</strong>
-                            <ul>
-                                <li>The simplest command is usually <code>open -a "Application Name"</code>. For example, to open TextEdit, the command is <code>open -a "TextEdit"</code>.</li>
-                                <li>Alternatively, find the application in Finder (usually in the <code>/Applications</code> folder). The path would be like: <code>/Applications/Visual Studio Code.app</code>. To run it, you might use <code>open "/Applications/Visual Studio Code.app"</code>.</li>
-                            </ul>
-                        </li>
-                        <li><strong>Scripts (e.g., .sh, .py):</strong>
-                            <ul>
-                                <li>Find your script file in Finder.</li>
-                                <li>Open Terminal (you can find it in Utilities or search with Spotlight).</li>
-                                <li>Drag the script file from Finder directly into the Terminal window. This will paste its full path. Copy this path.</li>
-                                <li>For Python scripts, it might be <code>python3 /Users/yourname/Documents/myscript.py</code>. For shell scripts, it might be <code>/Users/yourname/Documents/myscript.sh</code> (ensure it's executable: <code>chmod +x /path/to/script.sh</code>).</li>
-                            </ul>
-                        </li>
-                    </ul>
-                </div>
-                <div>
-                    <strong class="text-base">For Linux (executables, scripts):</strong>
-                     <ul class="list-disc list-inside space-y-1 mt-1">
-                        <li><strong>Find the File:</strong> Locate your executable file or script.</li>
-                        <li><strong>Get Path:</strong> Open your terminal, navigate to the directory containing the file, and type <code>pwd</code> (print working directory), then add <code>/filename</code>. Or, right-click the file in your file manager and look for an option like "Copy Path" or "Properties" to find its location.</li>
-                        <li><strong>Paste:</strong> The path might look like <code>/home/yourusername/MyPrograms/my_app</code> or <code>/usr/bin/some_program</code>.</li>
-                        <li><strong>Scripts:</strong> For Python, it's often <code>python3 /home/yourusername/scripts/myscript.py</code>. For shell scripts, <code>/home/yourusername/scripts/myscript.sh</code> (ensure it's executable: <code>chmod +x /path/to/script.sh</code>).</li>
-                        <li><strong>If in PATH:</strong> If the program is installed system-wide and its command is in your system's PATH environment variable (e.g., <code>firefox</code>, <code>gimp</code>), you can often just use the program's name as the command.</li>
-                    </ul>
-                </div>
+                <p>The <strong>Launch Command</strong> field is now used to specify the <strong>web URL</strong> that will be opened in a new browser tab when you click "Open" on a program card.</p>
+                <p>Simply enter the web address you want the card to link to. If you enter a URL like <code>example.com</code>, the application will attempt to open <code>https://example.com</code>. For local development URLs like <code>http://localhost:3000</code>, include the <code>http://</code> part.</p>
+                <p><strong>Examples of valid Launch Commands (URLs):</strong></p>
+                <ul class="list-disc list-inside space-y-1 mt-1">
+                    <li><code>https://www.google.com</code></li>
+                    <li><code>developer.mozilla.org</code></li>
+                    <li><code>wikipedia.org/wiki/Web_application</code></li>
+                    <li><code>http://localhost:8080</code></li>
+                    <li><code>mailto:user@example.com</code> (for email links)</li>
+                </ul>
+                <p>When you use the "Select File to Pre-fill Name" option, it will put the filename in the "Program Name" and "Launch Command" fields. <strong>You will need to manually replace the filename in the "Launch Command (URL)" field with the actual URL you want to open.</strong></p>
             </div>
 
             <h3 class="text-xl font-semibold mb-3 mt-6">Other Features:</h3>
             <div class="space-y-3 text-sm">
                 <ul class="list-disc list-inside space-y-1">
-                    <li><strong>Adding Programs:</strong> Click "Add New". Manually fill details or use "Select File to Pre-fill" (then verify Launch Command!).</li>
+                    <li><strong>Adding Programs:</strong> Click "Add New". Fill in the details, ensuring the "Launch Command (URL)" is a valid web address.</li>
                     <li><strong>Editing Programs:</strong> Click the <i class="fas fa-pencil-alt text-blue-300"></i> icon on a card.</li>
                     <li><strong>Deleting Programs:</strong> Click the <i class="fas fa-trash-alt text-red-400"></i> icon on a card.</li>
-                    <li><strong>Reordering:</strong> Drag and drop cards.</li>
-                    <li><strong>Saving:</strong> Changes are saved automatically to browser LocalStorage.</li>
-                    <li><strong>Export/Import:</strong> Use buttons to save/load your list as a <code>.json</code> file (for backup or transfer).</li>
+                    <li><strong>Reordering:</strong> Drag and drop cards. The order is saved automatically.</li>
+                    <li><strong>Saving Data:</strong> All your programs are saved automatically in your browser's LocalStorage.</li>
+                    <li><strong>Export/Import:</strong> Use the "Export" button to save your program list as a <code>.json</code> file (useful for backups or transferring to another browser/computer). Use "Import" to load a previously exported <code>.json</code> file. Importing will replace your current list.</li>
                 </ul>
             </div>
 
