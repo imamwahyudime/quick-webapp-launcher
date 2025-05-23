@@ -1,19 +1,19 @@
 // script.js
 // --- CREATION HUB APPLICATION ---
 const CreationHubApp = (() => {
+    // --- API ENDPOINTS ---
+    const API_BASE_URL = ''; // Assuming PHP files are in the same directory
+    const AUTH_API = `${API_BASE_URL}auth_api.php`;
+    const PROGRAMS_API = `${API_BASE_URL}programs_api.php`;
+
     // --- STATE & CONFIGURATION ---
-    const LOCAL_STORAGE_KEY = 'myCreationHubPrograms';
     let myPrograms = [];
+    let currentUser = null; // To store { username: '...', isAdmin: false }
 
     // --- DOM ELEMENTS CACHE ---
-    // Caching DOM elements for performance and easier access
     const dom = {
         programListContainer: null,
         emptyStateMessage: null,
-        // launchModal: null, // No longer needed if simulation modal is removed
-        // modalProgramNameLaunch: null, // No longer needed
-        // modalProgramDescriptionLaunch: null, // No longer needed
-        // closeLaunchModalButton: null, // No longer needed
         addEditModal: null,
         modalTitle: null,
         addEditForm: null,
@@ -27,12 +27,24 @@ const CreationHubApp = (() => {
         helpModal: null,
         helpButton: null,
         closeHelpModalButton: null,
-        importDataButton: null,
+        importDataButtonTrigger: null, // Renamed in HTML
         importFileInput: null,
         exportDataButton: null,
         toastNotification: null,
         selectFileForPreFillButton: null,
-        programFileInputForPreFill: null
+        programFileInputForPreFill: null,
+        // New Auth related DOM elements
+        loginModal: null,
+        loginForm: null,
+        usernameInput: null,
+        passwordInput: null,
+        cancelLoginButton: null,
+        submitLoginButton: null,
+        loginButton: null,
+        logoutButton: null,
+        loggedInUserDisplay: null,
+        loginErrorMessage: null,
+        authRequiredElements: [] // To store elements that require auth
     };
 
     /**
@@ -41,10 +53,6 @@ const CreationHubApp = (() => {
     function cacheDomElements() {
         dom.programListContainer = document.getElementById('program-list');
         dom.emptyStateMessage = document.getElementById('emptyStateMessage');
-        // dom.launchModal = document.getElementById('launchModal'); // Remove
-        // dom.modalProgramNameLaunch = document.getElementById('modalProgramNameLaunch'); // Remove
-        // dom.modalProgramDescriptionLaunch = document.getElementById('modalProgramDescriptionLaunch'); // Remove
-        // dom.closeLaunchModalButton = document.getElementById('closeLaunchModalButton'); // Remove
         dom.addEditModal = document.getElementById('addEditModal');
         dom.modalTitle = document.getElementById('modalTitle');
         dom.addEditForm = document.getElementById('addEditForm');
@@ -58,17 +66,30 @@ const CreationHubApp = (() => {
         dom.helpModal = document.getElementById('helpModal');
         dom.helpButton = document.getElementById('helpButton');
         dom.closeHelpModalButton = document.getElementById('closeHelpModalButton');
-        dom.importDataButton = document.getElementById('importDataButton');
+        dom.importDataButtonTrigger = document.getElementById('importDataButtonTrigger');
         dom.importFileInput = document.getElementById('importFileInput');
         dom.exportDataButton = document.getElementById('exportDataButton');
         dom.toastNotification = document.getElementById('toastNotification');
         dom.selectFileForPreFillButton = document.getElementById('selectFileForPreFillButton');
         dom.programFileInputForPreFill = document.getElementById('programFileInput');
+
+        // Auth elements
+        dom.loginModal = document.getElementById('loginModal');
+        dom.loginForm = document.getElementById('loginForm');
+        dom.usernameInput = document.getElementById('usernameInput');
+        dom.passwordInput = document.getElementById('passwordInput');
+        dom.cancelLoginButton = document.getElementById('cancelLoginButton');
+        dom.submitLoginButton = document.getElementById('submitLoginButton'); // Make sure this ID exists on the login submit button
+        dom.loginButton = document.getElementById('loginButton');
+        dom.logoutButton = document.getElementById('logoutButton');
+        dom.loggedInUserDisplay = document.getElementById('loggedInUser');
+        dom.loginErrorMessage = document.getElementById('loginErrorMessage');
+        dom.authRequiredElements = document.querySelectorAll('.requires-auth');
     }
 
     // --- UTILITIES ---
     /**
-     * Generates SVG string for a given icon type.
+     * Generates SVG string for a given icon type. (Unchanged)
      * @param {string} iconType - The type of icon.
      * @returns {string} SVG string.
      */
@@ -86,63 +107,192 @@ const CreationHubApp = (() => {
     }
 
     /**
-     * Shows a toast notification.
+     * Shows a toast notification. (Unchanged)
      * @param {string} message - The message to display.
      * @param {boolean} [isError=false] - True if it's an error toast.
      */
     function showToast(message, isError = false) {
         dom.toastNotification.textContent = message;
-        dom.toastNotification.className = 'toast show';
+        dom.toastNotification.className = 'toast show'; // Ensure 'toast' class is always present
         if (isError) {
             dom.toastNotification.classList.add('error');
+        } else {
+            dom.toastNotification.classList.remove('error'); // Ensure error class is removed if not an error
         }
         setTimeout(() => {
             dom.toastNotification.classList.remove('show');
         }, 3000);
     }
 
-    // --- LOCALSTORAGE DATA MANAGEMENT ---
-    /**
-     * Loads program data from LocalStorage.
-     */
-    function loadDataFromLocalStorage() {
-        const storedPrograms = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (storedPrograms) {
-            try {
-                myPrograms = JSON.parse(storedPrograms);
-            } catch (e) {
-                console.error("Error parsing programs from LocalStorage:", e);
-                myPrograms = [];
-                showToast("Error loading data from LocalStorage. Data might be corrupted.", true);
+    // --- API HELPERS ---
+    async function apiRequest(url, method = 'GET', body = null) {
+        const options = {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        };
+        if (body) {
+            options.body = JSON.stringify(body);
+        }
+
+        try {
+            const response = await fetch(url, options);
+            if (!response.ok) {
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch (e) {
+                    errorData = { message: `HTTP error! Status: ${response.status}` };
+                }
+                throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
             }
-        } else {
-            // Default programs for first-time users - MODIFIED TO USE URLS
-            myPrograms = [
-                { id: "prog_default_1", name: "Example: Google", description: "A popular search engine.", iconType: "chart", launchCommand: "https://www.google.com" },
-                { id: "prog_default_2", name: "Example: Developer Docs", description: "Useful documentation.", iconType: "file-text", launchCommand: "https://developer.mozilla.org" },
-            ];
+            // Handle cases where backend sends non-JSON success response (e.g. for export)
+            const contentType = response.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+                return response.json();
+            } else {
+                return response.text(); // Or blob, arrayBuffer, etc., depending on expected non-JSON response
+            }
+        } catch (error) {
+            console.error('API Request Error:', error);
+            showToast(error.message || 'An API error occurred.', true);
+            throw error; // Re-throw to be caught by calling function if needed
         }
     }
 
-    /**
-     * Saves the current program data to LocalStorage.
-     */
-    function saveDataToLocalStorage() {
+
+    // --- AUTHENTICATION ---
+    async function checkLoginStatus() {
         try {
-            localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(myPrograms));
-        } catch (e) {
-            console.error("Error saving programs to LocalStorage:", e);
-            showToast("Could not save data. Browser storage might be full or disabled.", true);
+            const data = await apiRequest(`${AUTH_API}?action=status`, 'GET');
+            if (data.success && data.loggedIn) {
+                currentUser = data.user;
+                updateUIAfterLogin();
+                fetchPrograms(); // Fetch programs after confirming login
+            } else {
+                currentUser = null;
+                updateUIAfterLogout();
+            }
+        } catch (error) {
+            currentUser = null;
+            updateUIAfterLogout();
+            // Don't show toast for initial status check failure, might be expected
+            console.warn("Not logged in or session expired.");
         }
     }
+
+    async function handleLogin(event) {
+        event.preventDefault();
+        dom.loginErrorMessage.classList.add('hidden');
+        const username = dom.usernameInput.value.trim();
+        const password = dom.passwordInput.value;
+
+        if (!username || !password) {
+            showToast("Username and password are required.", true);
+            return;
+        }
+
+        try {
+            const data = await apiRequest(`${AUTH_API}?action=login`, 'POST', { username, password });
+            if (data.success) {
+                currentUser = data.user;
+                showToast('Login successful!');
+                closeLoginModal();
+                updateUIAfterLogin();
+                fetchPrograms(); // Fetch programs for the logged-in user
+            } else {
+                // This else might not be reached if apiRequest throws on !response.ok
+                dom.loginErrorMessage.textContent = data.message || "Login failed. Please try again.";
+                dom.loginErrorMessage.classList.remove('hidden');
+                showToast(data.message || "Login failed.", true);
+            }
+        } catch (error) {
+             // Error already shown by apiRequest, but specific login error message can be set here
+            dom.loginErrorMessage.textContent = error.message || "Login failed due to a server error.";
+            dom.loginErrorMessage.classList.remove('hidden');
+        }
+    }
+
+    async function handleLogout() {
+        try {
+            const data = await apiRequest(`${AUTH_API}?action=logout`, 'POST');
+            if (data.success) {
+                showToast('Logout successful!');
+            } else {
+                showToast(data.message || 'Logout failed.', true);
+            }
+        } catch (error) {
+            // Error already shown by apiRequest
+        } finally {
+            currentUser = null;
+            myPrograms = []; // Clear programs on logout
+            updateUIAfterLogout();
+            renderProgramList(); // Re-render to show empty state or login prompt
+        }
+    }
+
+    function updateUIAfterLogin() {
+        if (!currentUser) return;
+        dom.loginButton.classList.add('hidden');
+        dom.logoutButton.classList.remove('hidden');
+        if(dom.loggedInUserDisplay) dom.loggedInUserDisplay.textContent = `Logged in as: ${currentUser.username}`;
+
+        dom.authRequiredElements.forEach(el => el.classList.remove('hidden'));
+        // Enable drag-and-drop if it was disabled
+        if (sortableInstance) sortableInstance.option("disabled", false);
+        renderProgramList(); // Re-render to show action buttons on cards
+    }
+
+    function updateUIAfterLogout() {
+        dom.loginButton.classList.remove('hidden');
+        dom.logoutButton.classList.add('hidden');
+        if(dom.loggedInUserDisplay) dom.loggedInUserDisplay.textContent = '';
+        myPrograms = []; // Clear programs array
+        renderProgramList(); // Render empty list or prompt to log in
+
+        dom.authRequiredElements.forEach(el => el.classList.add('hidden'));
+        // Disable drag-and-drop
+        if (sortableInstance) sortableInstance.option("disabled", true);
+
+        closeAddEditModal(); // Close any open modals that require auth
+    }
+
+
+    // --- PROGRAM DATA MANAGEMENT (Now via API) ---
+    async function fetchPrograms() {
+        if (!currentUser) {
+            myPrograms = [];
+            renderProgramList();
+            return;
+        }
+        try {
+            const data = await apiRequest(`${PROGRAMS_API}?action=fetch`, 'GET');
+            if (data.success) {
+                myPrograms = data.programs || [];
+            } else {
+                myPrograms = [];
+                showToast(data.message || 'Could not fetch programs.', true);
+            }
+        } catch (error) {
+            myPrograms = [];
+            // Error toast is already handled by apiRequest
+        }
+        renderProgramList();
+    }
+
 
     // --- RENDERING ---
-    /**
-     * Renders the list of program cards to the DOM.
-     */
     function renderProgramList() {
         dom.programListContainer.innerHTML = '';
+        if (!currentUser) {
+             dom.emptyStateMessage.textContent = "Please log in to see your Creation Hub.";
+             dom.emptyStateMessage.classList.remove('hidden');
+             return;
+        }
+
         if (myPrograms.length === 0) {
+            dom.emptyStateMessage.textContent = 'Your hub is empty. Click "Add New" to get started!';
             dom.emptyStateMessage.classList.remove('hidden');
         } else {
             dom.emptyStateMessage.classList.add('hidden');
@@ -153,20 +303,25 @@ const CreationHubApp = (() => {
             card.className = 'program-card';
             card.setAttribute('data-id', program.id);
 
-            const actionsDiv = document.createElement('div');
-            actionsDiv.className = 'card-actions';
-            const editButton = document.createElement('button');
-            editButton.className = 'action-button edit-button';
-            editButton.innerHTML = '<i class="fas fa-pencil-alt text-blue-300"></i>';
-            editButton.title = "Edit Program";
-            editButton.onclick = (e) => { e.stopPropagation(); openAddEditModal('edit', program.id); };
-            actionsDiv.appendChild(editButton);
-            const deleteButton = document.createElement('button');
-            deleteButton.className = 'action-button delete-button';
-            deleteButton.innerHTML = '<i class="fas fa-trash-alt text-red-400"></i>';
-            deleteButton.title = "Delete Program";
-            deleteButton.onclick = (e) => { e.stopPropagation(); deleteProgram(program.id); };
-            actionsDiv.appendChild(deleteButton);
+            // Card actions (Edit, Delete) - only if logged in
+            if (currentUser) {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'card-actions';
+                const editButton = document.createElement('button');
+                editButton.className = 'action-button edit-button';
+                editButton.innerHTML = '<i class="fas fa-pencil-alt text-blue-300"></i>';
+                editButton.title = "Edit Program";
+                editButton.onclick = (e) => { e.stopPropagation(); openAddEditModal('edit', program.id); };
+                actionsDiv.appendChild(editButton);
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'action-button delete-button';
+                deleteButton.innerHTML = '<i class="fas fa-trash-alt text-red-400"></i>';
+                deleteButton.title = "Delete Program";
+                deleteButton.onclick = (e) => { e.stopPropagation(); deleteProgram(program.id); };
+                actionsDiv.appendChild(deleteButton);
+                card.appendChild(actionsDiv);
+            }
+
 
             const iconPlaceholder = document.createElement('div');
             iconPlaceholder.className = 'program-icon-placeholder';
@@ -183,62 +338,52 @@ const CreationHubApp = (() => {
             const launchButton = document.createElement('button');
             launchButton.className = 'launch-button mt-auto';
             launchButton.innerHTML = '<i class="fas fa-play mr-2"></i>Open';
-            // MODIFIED: The function name is the same, but its behavior will change.
             launchButton.onclick = (e) => { e.stopPropagation(); openProgramLink(program); };
 
 
             infoDiv.appendChild(name);
             infoDiv.appendChild(description);
             infoDiv.appendChild(launchButton);
-            card.appendChild(actionsDiv);
-            card.appendChild(iconPlaceholder);
+            card.appendChild(iconPlaceholder); // Icon added after actions
             card.appendChild(infoDiv);
             dom.programListContainer.appendChild(card);
         });
-        saveDataToLocalStorage();
+        // No direct save to LocalStorage here; saving is per-action via API
     }
 
     // --- MODAL HANDLING & URL OPENING ---
     /**
-     * Opens the program's launch command (expected to be a URL) in a new tab.
-     * @param {object} program - The program object containing the launchCommand as a URL.
+     * Opens the program's launch command (URL) in a new tab. (Unchanged logic, just context)
      */
-    function openProgramLink(program) { // Renamed from showLaunchSimulationModal for clarity
-        if (program && program.launchCommand && program.launchCommand.trim() !== "") {
-            let url = program.launchCommand.trim();
-
-            // Prepend https:// if the URL doesn't have a scheme (e.g., http, https, mailto)
-            // and is not a protocol-relative URL (starting with //).
+    function openProgramLink(program) {
+        if (program && program.launch_command && program.launch_command.trim() !== "") { // field name from DB
+            let url = program.launch_command.trim();
             if (!url.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:/i) && !url.startsWith('//')) {
                 url = 'https://' + url;
             }
-
             try {
                 const newTab = window.open(url, '_blank', 'noopener,noreferrer');
                 if (!newTab || newTab.closed || typeof newTab.closed === 'undefined') {
-                    // This can happen if a popup blocker prevents opening the new tab
-                    showToast('Popup blocked. Please allow popups for this site to open links.', true);
+                    showToast('Popup blocked. Please allow popups for this site.', true);
                 }
             } catch (e) {
                 console.error("Error opening URL:", e, "URL was:", url);
-                showToast(`Could not open URL: '${url}'. Please check the address.`, true);
+                showToast(`Could not open URL: '${url}'. Check the address.`, true);
             }
         } else {
-            showToast("Launch command is empty. Please provide a URL.", true);
-            console.warn("Launch command is empty for program:", program ? program.name : "Unknown program");
+            showToast("Launch command is empty or invalid. Please provide a URL.", true);
         }
     }
 
-
-    /**
-     * Opens the Add/Edit program modal.
-     * @param {string} mode - 'add' or 'edit'.
-     * @param {string|null} [programId=null] - The ID of the program to edit.
-     */
     function openAddEditModal(mode, programId = null) {
+        if (!currentUser) {
+            showToast("Please log in to manage programs.", true);
+            openLoginModal();
+            return;
+        }
         dom.addEditForm.reset();
         dom.programIdInput.value = '';
-        dom.programFileInputForPreFill.value = ''; // Clear file input for pre-fill
+        dom.programFileInputForPreFill.value = '';
         if (mode === 'edit' && programId) {
             const program = myPrograms.find(p => p.id === programId);
             if (program) {
@@ -246,10 +391,9 @@ const CreationHubApp = (() => {
                 dom.programIdInput.value = program.id;
                 dom.programNameInput.value = program.name;
                 dom.programDescriptionInput.value = program.description;
-                dom.programLaunchCommandInput.value = program.launchCommand;
-                dom.programIconTypeInput.value = program.iconType;
+                dom.programLaunchCommandInput.value = program.launch_command; // DB field name
+                dom.programIconTypeInput.value = program.iconType || program.icon_type; // DB field name
             } else {
-                console.error("Program not found for editing:", programId);
                 showToast("Error: Program not found for editing.", true);
                 return;
             }
@@ -259,144 +403,192 @@ const CreationHubApp = (() => {
         dom.addEditModal.classList.add('active');
     }
 
-    /** Closes the Add/Edit modal. */
     function closeAddEditModal() { dom.addEditModal.classList.remove('active'); }
-    /** Closes the Help modal. */
     function closeHelpModal() { dom.helpModal.classList.remove('active'); }
-    /** Shows the Help modal. */
     function showHelpModal() { dom.helpModal.classList.add('active'); }
+    function openLoginModal() {
+        dom.loginForm.reset();
+        dom.loginErrorMessage.classList.add('hidden');
+        dom.loginModal.classList.add('active');
+        dom.usernameInput.focus();
+    }
+    function closeLoginModal() { dom.loginModal.classList.remove('active'); }
 
 
-    // --- CRUD OPERATIONS ---
-    /**
-     * Handles the submission of the Add/Edit form.
-     * @param {Event} event - The form submission event.
-     */
-    function handleAddEditFormSubmit(event) {
+    // --- CRUD OPERATIONS via API ---
+    async function handleAddEditFormSubmit(event) {
         event.preventDefault();
-        const id = dom.programIdInput.value || `prog_${Date.now()}`;
-        const name = dom.programNameInput.value.trim();
-        const description = dom.programDescriptionInput.value.trim();
-        const launchCommand = dom.programLaunchCommandInput.value.trim(); // This is now a URL
-        const iconType = dom.programIconTypeInput.value;
-
-        if (!name || !description || !launchCommand) {
-            showToast("Please fill in Name, Description, and Launch URL.", true);
+        if (!currentUser) {
+            showToast("Please log in to save programs.", true);
+            openLoginModal();
             return;
         }
-        // Basic URL validation (optional, browser handles most errors with window.open)
-        // if (!launchCommand.toLowerCase().startsWith('http://') && !launchCommand.toLowerCase().startsWith('https://') && !launchCommand.startsWith('//') && !launchCommand.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:/i) ) {
-        // if (!launchCommand.includes('.') && !launchCommand.includes(':')) { // Very basic heuristic
-        // showToast("Please enter a valid URL for the Launch Command (e.g., https://example.com).", true);
-        // return;
-        // }
-        // }
 
-        const programData = { id, name, description, launchCommand, iconType };
-        if (dom.programIdInput.value) { // Editing
-            const index = myPrograms.findIndex(p => p.id === id);
-            if (index !== -1) {
-                myPrograms[index] = programData;
-                showToast("Program updated successfully!");
-            } else {
-                 showToast("Error updating: Program ID not found.", true);
-            }
-        } else { // Adding
-            myPrograms.push(programData);
-            showToast("Program added successfully!");
+        const id = dom.programIdInput.value; // Will be empty for 'add'
+        const name = dom.programNameInput.value.trim();
+        const description = dom.programDescriptionInput.value.trim();
+        const launchCommand = dom.programLaunchCommandInput.value.trim();
+        const iconType = dom.programIconTypeInput.value;
+
+        if (!name || !launchCommand) { // Description can be optional
+            showToast("Please fill in Name and Launch URL.", true);
+            return;
         }
-        renderProgramList();
-        closeAddEditModal();
+
+        const programData = { name, description, launchCommand, iconType };
+        let url, method;
+
+        if (id) { // Editing existing program
+            programData.id = id; // Pass id for update to ensure correct item is updated
+            url = `${PROGRAMS_API}?action=update&id=${id}`;
+            method = 'POST'; // Or PUT
+        } else { // Adding new program
+            // ID will be generated by backend if not provided, or we can generate one
+            // programData.id = `prog_${Date.now()}`; // Or let backend handle ID
+            url = `${PROGRAMS_API}?action=add`;
+            method = 'POST';
+        }
+
+        try {
+            const data = await apiRequest(url, method, programData);
+            if (data.success) {
+                showToast(id ? "Program updated successfully!" : "Program added successfully!");
+                fetchPrograms(); // Refresh the list from server
+                closeAddEditModal();
+            } else {
+                showToast(data.message || `Could not ${id ? 'update' : 'add'} program.`, true);
+            }
+        } catch (error) {
+            // Error already shown by apiRequest
+        }
     }
 
-    /**
-     * Deletes a program after confirmation.
-     * @param {string} programId - The ID of the program to delete.
-     */
-    function deleteProgram(programId) {
+    async function deleteProgram(programId) {
+        if (!currentUser) {
+            showToast("Please log in to delete programs.", true);
+            openLoginModal();
+            return;
+        }
         const program = myPrograms.find(p => p.id === programId);
         if (confirm(`Are you sure you want to delete "${program ? program.name : 'this program'}"? This cannot be undone.`)) {
-            myPrograms = myPrograms.filter(p => p.id !== programId);
-            renderProgramList();
-            showToast("Program deleted.");
+            try {
+                const data = await apiRequest(`${PROGRAMS_API}?action=delete&id=${programId}`, 'POST'); // Or DELETE
+                if (data.success) {
+                    showToast("Program deleted.");
+                    fetchPrograms(); // Refresh list
+                } else {
+                    showToast(data.message || "Could not delete program.", true);
+                }
+            } catch (error) {
+                // Error already shown by apiRequest
+            }
         }
     }
 
     // --- FEATURE INITIALIZATION ---
-    /**
-     * Initializes drag and drop functionality using SortableJS.
-     */
+    let sortableInstance = null;
     function initializeDragAndDrop() {
         if (dom.programListContainer) {
-            new Sortable(dom.programListContainer, {
+            sortableInstance = new Sortable(dom.programListContainer, {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
-                onEnd: function (evt) {
+                disabled: !currentUser, // Initially disable if not logged in
+                onEnd: async function (evt) {
+                    if (!currentUser) return; // Should not happen if disabled
+
+                    // Update local array order immediately for responsiveness
                     const movedProgram = myPrograms.splice(evt.oldIndex, 1)[0];
                     myPrograms.splice(evt.newIndex, 0, movedProgram);
-                    saveDataToLocalStorage();
-                    showToast("Order saved!");
+                    // Re-render with new local order. Optional, server will send definitive order.
+                    // renderProgramList();
+
+                    const orderedIds = myPrograms.map(p => p.id);
+                    try {
+                        const data = await apiRequest(`${PROGRAMS_API}?action=reorder`, 'POST', { orderedIds });
+                        if (data.success) {
+                            showToast("Order saved to server!");
+                            // Optionally fetchPrograms() here to ensure sync,
+                            // but optimistic update is usually fine.
+                        } else {
+                            showToast(data.message || "Could not save order.", true);
+                            fetchPrograms(); // Re-fetch to correct potential mismatch
+                        }
+                    } catch (error) {
+                        fetchPrograms(); // Re-fetch on error
+                    }
                 }
             });
         }
     }
 
-    /**
-     * Handles exporting program data to a JSON file.
-     */
-    function exportData() {
+    async function exportData() {
+        if (!currentUser) {
+            showToast("Please log in to export data.", true);
+            openLoginModal();
+            return;
+        }
         if (myPrograms.length === 0) {
             showToast("Nothing to export. Add some programs first!", true);
             return;
         }
-        const jsonData = JSON.stringify(myPrograms, null, 2);
-        const blob = new Blob([jsonData], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'creation_hub_data.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        showToast("Data exported successfully!");
+        try {
+            // The programs_api.php for export directly returns the JSON array string
+            const jsonData = await apiRequest(`${PROGRAMS_API}?action=export`, 'GET');
+            // jsonData here is already a string because apiRequest handles non-JSON responses as text.
+            // If it were parsed JSON, it would be: const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'creation_hub_data.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast("Data exported successfully!");
+        } catch (error) {
+            showToast("Could not export data.", true);
+        }
     }
 
-    /**
-     * Handles importing program data from a JSON file.
-     * @param {Event} event - The file input change event.
-     */
     function importData(event) {
+        if (!currentUser) {
+            showToast("Please log in to import data.", true);
+            openLoginModal();
+            event.target.value = ''; // Reset file input
+            return;
+        }
         const file = event.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = async function(e) {
                 try {
-                    const importedData = JSON.parse(e.target.result);
-                    if (Array.isArray(importedData)) {
-                        // Basic validation for imported items
-                        const isValid = importedData.every(item =>
-                            item.hasOwnProperty('id') &&
-                            item.hasOwnProperty('name') &&
-                            item.hasOwnProperty('description') &&
-                            item.hasOwnProperty('launchCommand') && // This will now be expected to be a URL
-                            item.hasOwnProperty('iconType')
-                        );
-                        if (isValid || importedData.length === 0) {
-                            if (confirm("Importing this file will replace your current program list. Are you sure?")) {
-                                myPrograms = importedData;
-                                renderProgramList();
-                                showToast("Data imported successfully!");
-                            }
-                        } else {
-                            showToast("Invalid file format. Ensure items have id, name, description, launchCommand (URL), and iconType.", true);
-                        }
+                    const importedRawData = JSON.parse(e.target.result);
+                    // The backend expects an object like { "programs": [...] }
+                    // If your JSON file is just an array, wrap it.
+                    let programsToImport;
+                    if (Array.isArray(importedRawData)) {
+                        programsToImport = importedRawData;
+                    } else if (importedRawData && Array.isArray(importedRawData.programs)) {
+                        programsToImport = importedRawData.programs;
                     } else {
-                        showToast("Invalid file format. The file should contain a JSON array.", true);
+                         showToast("Invalid file format. Expected a JSON array of programs or an object {programs: [...]}.", true);
+                         return;
+                    }
+
+
+                    if (confirm("Importing this file will replace your current program list on the server with the content of this file. Are you sure?")) {
+                        const data = await apiRequest(`${PROGRAMS_API}?action=import`, 'POST', { programs: programsToImport });
+                        if (data.success) {
+                            showToast(data.message || "Data imported successfully!");
+                            fetchPrograms(); // Refresh list from server
+                        } else {
+                            showToast(data.message || "Import failed.", true);
+                        }
                     }
                 } catch (error) {
                     console.error("Error importing data:", error);
-                    showToast("Error reading or parsing the file. Make sure it's a valid JSON.", true);
+                    showToast(error.message || "Error reading or parsing the file. Make sure it's valid JSON.", true);
                 } finally {
                     dom.importFileInput.value = ''; // Reset file input
                 }
@@ -405,64 +597,64 @@ const CreationHubApp = (() => {
         }
     }
 
+
     /**
-     * Handles pre-filling form fields from a selected file.
-     * The launch command will get the filename, which is likely not a URL.
-     * User will need to manually change it to a URL.
-     * @param {Event} event - The file input change event.
+     * Handles pre-filling form fields from a selected file. (Largely unchanged)
      */
     function preFillFormFromFile(event) {
         const file = event.target.files[0];
         if (file) {
             const fileNameWithoutExtension = file.name.split('.').slice(0, -1).join('.') || file.name;
             dom.programNameInput.value = fileNameWithoutExtension;
-            dom.programLaunchCommandInput.value = file.name; // This sets filename, user should change to URL
-            showToast("Fields pre-filled. Please REPLACE the Launch Command with a valid URL.", false);
+            dom.programLaunchCommandInput.value = file.name; // User still needs to change this to URL
+            showToast("Fields pre-filled. REPLACE Launch Command with a valid URL.", false);
         }
-        dom.programFileInputForPreFill.value = ''; // Reset file input
+        dom.programFileInputForPreFill.value = '';
     }
 
     // --- EVENT LISTENERS ---
-    /**
-     * Attaches all necessary event listeners.
-     */
     function bindEventListeners() {
-        // dom.closeLaunchModalButton.onclick = closeLaunchModal; // Remove
         dom.addNewProgramButton.onclick = () => openAddEditModal('add');
         dom.cancelAddEditButton.onclick = closeAddEditModal;
         dom.addEditForm.onsubmit = handleAddEditFormSubmit;
+
         dom.helpButton.onclick = showHelpModal;
         dom.closeHelpModalButton.onclick = closeHelpModal;
+
         dom.exportDataButton.onclick = exportData;
-        dom.importDataButton.onclick = () => dom.importFileInput.click();
+        dom.importDataButtonTrigger.onclick = () => dom.importFileInput.click(); // Changed ID
         dom.importFileInput.onchange = importData;
+
         dom.selectFileForPreFillButton.onclick = () => dom.programFileInputForPreFill.click();
         dom.programFileInputForPreFill.onchange = preFillFormFromFile;
 
+        // Auth Listeners
+        dom.loginButton.onclick = openLoginModal;
+        dom.logoutButton.onclick = handleLogout;
+        dom.loginForm.onsubmit = handleLogin;
+        dom.cancelLoginButton.onclick = closeLoginModal;
+
+
         // Global click listener for closing modals
         window.onclick = (event) => {
-            // if (event.target == dom.launchModal) closeLaunchModal(); // Remove
             if (event.target == dom.addEditModal) closeAddEditModal();
             if (event.target == dom.helpModal) closeHelpModal();
+            if (event.target == dom.loginModal) closeLoginModal();
         };
     }
 
     // --- INITIALIZATION ---
-    /**
-     * Initializes the application.
-     */
-    function init() {
-        cacheDomElements(); // Cache DOM elements first
-        loadDataFromLocalStorage();
-        renderProgramList();
+    async function init() {
+        cacheDomElements();
         bindEventListeners();
-        initializeDragAndDrop();
+        updateUIAfterLogout(); // Set initial UI state to logged-out
+        await checkLoginStatus(); // Check login status and update UI accordingly
+        initializeDragAndDrop(); // Initialize drag and drop, will be enabled/disabled based on login
+        // Initial fetchPrograms is called within checkLoginStatus if successful
     }
 
-    // --- PUBLIC API (if any parts need to be exposed, otherwise not necessary for IIFE) ---
     return {
         init: init
-        // Potentially expose other methods if needed for debugging or external calls
     };
 })();
 

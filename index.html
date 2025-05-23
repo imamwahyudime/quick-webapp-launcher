@@ -17,29 +17,39 @@
                 <div>
                     <h1 class="text-3xl lg:text-4xl font-bold text-white">My Creation Hub</h1>
                     <p class="text-md lg:text-lg text-gray-400 mt-1 sm:mt-2">Your personalized project launcher.</p>
+                    <p id="loggedInUser" class="text-sm text-sky-400 mt-1"></p>
                 </div>
                 <div class="flex flex-wrap gap-2 mt-4 sm:mt-0">
-                    <button id="addNewProgramButton" class="header-button bg-green-500">
+                    <button id="addNewProgramButton" class="header-button bg-green-500 requires-auth hidden">
                         <i class="fas fa-plus"></i>Add New
                     </button>
-                    <button id="importDataButton" class="header-button bg-yellow-500">
+                    <button id="importDataButtonTrigger" class="header-button bg-yellow-500 requires-auth hidden">
                         <i class="fas fa-file-import"></i>Import
                     </button>
                     <input type="file" id="importFileInput" class="hidden" accept=".json">
-                    <button id="exportDataButton" class="header-button bg-yellow-500">
+                    <button id="exportDataButton" class="header-button bg-yellow-500 requires-auth hidden">
                         <i class="fas fa-file-export"></i>Export
                     </button>
                     <button id="helpButton" class="header-button bg-sky-500">
                         <i class="fas fa-question-circle"></i>Help
                     </button>
+                    <a href="https://github.com/imamwahyudime/quick-webapp-launcher" target="_blank" id="aboutButton" class="header-button bg-purple-500 hover:bg-purple-600">
+                        <i class="fas fa-info-circle"></i>About
+                    </a>
+                    <button id="loginButton" class="header-button bg-blue-500 hover:bg-blue-600">
+                        <i class="fas fa-sign-in-alt"></i>Login
+                    </button>
+                    <button id="logoutButton" class="header-button bg-red-500 hover:bg-red-600 hidden">
+                        <i class="fas fa-sign-out-alt"></i>Logout
+                    </button>
                 </div>
             </div>
-             <p class="text-sm text-gray-500">Drag cards to reorder. Changes are saved automatically.</p>
+             <p class="text-sm text-gray-500 requires-auth hidden">Drag cards to reorder. Changes are saved to the server.</p>
         </header>
 
         <div id="program-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             </div>
-         <p id="emptyStateMessage" class="text-center text-gray-500 py-10 hidden">Your hub is empty. Click "Add New" to get started!</p>
+         <p id="emptyStateMessage" class="text-center text-gray-500 py-10 hidden">Your hub is empty or you are not logged in. Click "Add New" to get started if logged in!</p>
     </div>
 
     <div id="addEditModal" class="modal">
@@ -50,8 +60,7 @@
                     <i class="fas fa-file-alt"></i> Select File to Pre-fill Name
                 </button>
             </div>
-            <input type="file" id="programFileInput" class="hidden" />
-            <form id="addEditForm">
+            <input type="file" id="programFileInput" class="hidden" /> <form id="addEditForm">
                 <input type="hidden" id="programIdInput">
                 <div>
                     <label for="programNameInput" class="form-label">Program Name:</label>
@@ -89,14 +98,13 @@
     <div id="helpModal" class="modal">
         <div class="modal-content">
             <h2 class="text-2xl font-semibold mb-4 text-center">Creation Hub Help</h2>
-
             <div class="space-y-3 text-sm mb-6">
                 <p>Welcome to your Creation Hub! This is your personal space to organize and quickly access all your projects by launching them as URLs.</p>
+                <p>You'll need to log in to manage your program entries. The data is now stored securely on a server.</p>
             </div>
-
             <h3 class="text-xl font-semibold mb-3">Understanding the "Launch Command (URL)"</h3>
             <div class="space-y-3 text-sm mb-6">
-                <p>The <strong>Launch Command</strong> field is now used to specify the <strong>web URL</strong> that will be opened in a new browser tab when you click "Open" on a program card.</p>
+                <p>The <strong>Launch Command</strong> field is used to specify the <strong>web URL</strong> that will be opened in a new browser tab when you click "Open" on a program card.</p>
                 <p>Simply enter the web address you want the card to link to. If you enter a URL like <code>example.com</code>, the application will attempt to open <code>https://example.com</code>. For local development URLs like <code>http://localhost:3000</code>, include the <code>http://</code> part.</p>
                 <p><strong>Examples of valid Launch Commands (URLs):</strong></p>
                 <ul class="list-disc list-inside space-y-1 mt-1">
@@ -108,22 +116,41 @@
                 </ul>
                 <p>When you use the "Select File to Pre-fill Name" option, it will put the filename in the "Program Name" and "Launch Command" fields. <strong>You will need to manually replace the filename in the "Launch Command (URL)" field with the actual URL you want to open.</strong></p>
             </div>
-
-            <h3 class="text-xl font-semibold mb-3 mt-6">Other Features:</h3>
+            <h3 class="text-xl font-semibold mb-3 mt-6">Other Features (when logged in):</h3>
             <div class="space-y-3 text-sm">
                 <ul class="list-disc list-inside space-y-1">
                     <li><strong>Adding Programs:</strong> Click "Add New". Fill in the details, ensuring the "Launch Command (URL)" is a valid web address.</li>
                     <li><strong>Editing Programs:</strong> Click the <i class="fas fa-pencil-alt text-blue-300"></i> icon on a card.</li>
                     <li><strong>Deleting Programs:</strong> Click the <i class="fas fa-trash-alt text-red-400"></i> icon on a card.</li>
-                    <li><strong>Reordering:</strong> Drag and drop cards. The order is saved automatically.</li>
-                    <li><strong>Saving Data:</strong> All your programs are saved automatically in your browser's LocalStorage.</li>
-                    <li><strong>Export/Import:</strong> Use the "Export" button to save your program list as a <code>.json</code> file (useful for backups or transferring to another browser/computer). Use "Import" to load a previously exported <code>.json</code> file. Importing will replace your current list.</li>
+                    <li><strong>Reordering:</strong> Drag and drop cards. The order is saved automatically to the server.</li>
+                    <li><strong>Saving Data:</strong> All your programs are saved on the server, linked to your account.</li>
+                    <li><strong>Export/Import:</strong> Use the "Export" button to save your program list as a <code>.json</code> file. Use "Import" to load a previously exported <code>.json</code> file. Importing will replace your current list on the server.</li>
                 </ul>
             </div>
-
             <div class="flex justify-end mt-8">
                 <button id="closeHelpModalButton" class="form-button modal-close-button">Got it!</button>
             </div>
+        </div>
+    </div>
+
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <h2 class="text-2xl font-semibold mb-6 text-center">Login to Creation Hub</h2>
+            <form id="loginForm">
+                <div id="loginErrorMessage" class="text-red-400 text-sm mb-4 hidden"></div>
+                <div>
+                    <label for="usernameInput" class="form-label">Username:</label>
+                    <input type="text" id="usernameInput" class="form-input" required>
+                </div>
+                <div>
+                    <label for="passwordInput" class="form-label">Password:</label>
+                    <input type="password" id="passwordInput" class="form-input" required>
+                </div>
+                <div class="flex justify-end gap-4 mt-8">
+                    <button type="button" id="cancelLoginButton" class="form-button bg-gray-500 hover:bg-gray-600">Cancel</button>
+                    <button type="submit" id="submitLoginButton" class="form-button form-button-save">Login</button>
+                </div>
+            </form>
         </div>
     </div>
 

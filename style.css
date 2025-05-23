@@ -60,8 +60,8 @@ body {
     transition: background-color 0.2s ease;
     cursor: pointer;
     border: none;
-    display: inline-flex; 
-    align-items: center; 
+    display: inline-flex;
+    align-items: center;
     gap: 0.5rem; /* Tailwind: space-x-2 approx */
 }
 
@@ -131,8 +131,8 @@ body {
     width: 90%;
     max-width: 600px; /* Custom max-width */
     box-shadow: 0 10px 25px rgba(0,0,0,0.2); /* Enhanced shadow */
-    max-height: 90vh; 
-    overflow-y: auto; 
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .modal-content h2, .modal-content h3, .modal-content h4 { color: #e5e7eb; } /* Tailwind: text-gray-200 */
