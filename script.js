@@ -1,5 +1,5 @@
 // script.js
-// --- CREATION HUB APPLICATION ---
+// --- CREATION HUB APPLICATION (Public View / Admin Edit) ---
 const CreationHubApp = (() => {
     // --- API ENDPOINTS ---
     const API_BASE_URL = ''; // Assuming PHP files are in the same directory
@@ -8,7 +8,7 @@ const CreationHubApp = (() => {
 
     // --- STATE & CONFIGURATION ---
     let myPrograms = [];
-    let currentUser = null; // To store { username: '...', isAdmin: false }
+    let currentUser = null; // To store { username: '...', isAdmin: false/true }
 
     // --- DOM ELEMENTS CACHE ---
     const dom = {
@@ -27,13 +27,12 @@ const CreationHubApp = (() => {
         helpModal: null,
         helpButton: null,
         closeHelpModalButton: null,
-        importDataButtonTrigger: null, // Renamed in HTML
+        importDataButtonTrigger: null,
         importFileInput: null,
         exportDataButton: null,
         toastNotification: null,
         selectFileForPreFillButton: null,
         programFileInputForPreFill: null,
-        // New Auth related DOM elements
         loginModal: null,
         loginForm: null,
         usernameInput: null,
@@ -44,12 +43,9 @@ const CreationHubApp = (() => {
         logoutButton: null,
         loggedInUserDisplay: null,
         loginErrorMessage: null,
-        authRequiredElements: [] // To store elements that require auth
+        adminRequiredElements: [] // Elements that require admin privileges
     };
 
-    /**
-     * Caches all necessary DOM elements when the script loads.
-     */
     function cacheDomElements() {
         dom.programListContainer = document.getElementById('program-list');
         dom.emptyStateMessage = document.getElementById('emptyStateMessage');
@@ -72,27 +68,21 @@ const CreationHubApp = (() => {
         dom.toastNotification = document.getElementById('toastNotification');
         dom.selectFileForPreFillButton = document.getElementById('selectFileForPreFillButton');
         dom.programFileInputForPreFill = document.getElementById('programFileInput');
-
-        // Auth elements
         dom.loginModal = document.getElementById('loginModal');
         dom.loginForm = document.getElementById('loginForm');
         dom.usernameInput = document.getElementById('usernameInput');
         dom.passwordInput = document.getElementById('passwordInput');
         dom.cancelLoginButton = document.getElementById('cancelLoginButton');
-        dom.submitLoginButton = document.getElementById('submitLoginButton'); // Make sure this ID exists on the login submit button
+        dom.submitLoginButton = document.getElementById('submitLoginButton');
         dom.loginButton = document.getElementById('loginButton');
         dom.logoutButton = document.getElementById('logoutButton');
         dom.loggedInUserDisplay = document.getElementById('loggedInUser');
         dom.loginErrorMessage = document.getElementById('loginErrorMessage');
-        dom.authRequiredElements = document.querySelectorAll('.requires-auth');
+        // Changed selector to .requires-admin as per HTML update
+        dom.adminRequiredElements = document.querySelectorAll('.requires-admin');
     }
 
-    // --- UTILITIES ---
-    /**
-     * Generates SVG string for a given icon type. (Unchanged)
-     * @param {string} iconType - The type of icon.
-     * @returns {string} SVG string.
-     */
+    // --- UTILITIES --- (getIconSVG, showToast remain unchanged)
     function getIconSVG(iconType) {
         const icons = {
             'code': `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" /></svg>`,
@@ -105,26 +95,20 @@ const CreationHubApp = (() => {
         };
         return icons[iconType] || icons['default'];
     }
-
-    /**
-     * Shows a toast notification. (Unchanged)
-     * @param {string} message - The message to display.
-     * @param {boolean} [isError=false] - True if it's an error toast.
-     */
     function showToast(message, isError = false) {
         dom.toastNotification.textContent = message;
-        dom.toastNotification.className = 'toast show'; // Ensure 'toast' class is always present
+        dom.toastNotification.className = 'toast show';
         if (isError) {
             dom.toastNotification.classList.add('error');
         } else {
-            dom.toastNotification.classList.remove('error'); // Ensure error class is removed if not an error
+            dom.toastNotification.classList.remove('error');
         }
         setTimeout(() => {
             dom.toastNotification.classList.remove('show');
         }, 3000);
     }
 
-    // --- API HELPERS ---
+    // --- API HELPERS --- (apiRequest remains unchanged)
     async function apiRequest(url, method = 'GET', body = null) {
         const options = {
             method: method,
@@ -135,7 +119,6 @@ const CreationHubApp = (() => {
         if (body) {
             options.body = JSON.stringify(body);
         }
-
         try {
             const response = await fetch(url, options);
             if (!response.ok) {
@@ -147,38 +130,34 @@ const CreationHubApp = (() => {
                 }
                 throw new Error(errorData.message || `HTTP error! Status: ${response.status}`);
             }
-            // Handle cases where backend sends non-JSON success response (e.g. for export)
             const contentType = response.headers.get("content-type");
             if (contentType && contentType.indexOf("application/json") !== -1) {
                 return response.json();
             } else {
-                return response.text(); // Or blob, arrayBuffer, etc., depending on expected non-JSON response
+                return response.text();
             }
         } catch (error) {
             console.error('API Request Error:', error);
             showToast(error.message || 'An API error occurred.', true);
-            throw error; // Re-throw to be caught by calling function if needed
+            throw error;
         }
     }
-
 
     // --- AUTHENTICATION ---
     async function checkLoginStatus() {
         try {
             const data = await apiRequest(`${AUTH_API}?action=status`, 'GET');
             if (data.success && data.loggedIn) {
-                currentUser = data.user;
-                updateUIAfterLogin();
-                fetchPrograms(); // Fetch programs after confirming login
+                currentUser = data.user; // user should include { username: '...', isAdmin: true/false }
+                updateUIForAuthChange();
             } else {
                 currentUser = null;
-                updateUIAfterLogout();
+                updateUIForAuthChange();
             }
         } catch (error) {
             currentUser = null;
-            updateUIAfterLogout();
-            // Don't show toast for initial status check failure, might be expected
-            console.warn("Not logged in or session expired.");
+            updateUIForAuthChange();
+            console.warn("Session check failed or not logged in.");
         }
     }
 
@@ -192,23 +171,20 @@ const CreationHubApp = (() => {
             showToast("Username and password are required.", true);
             return;
         }
-
         try {
             const data = await apiRequest(`${AUTH_API}?action=login`, 'POST', { username, password });
             if (data.success) {
                 currentUser = data.user;
                 showToast('Login successful!');
                 closeLoginModal();
-                updateUIAfterLogin();
-                fetchPrograms(); // Fetch programs for the logged-in user
+                updateUIForAuthChange();
+                // Programs are fetched on init and after auth change, so not strictly needed here unless force refresh
             } else {
-                // This else might not be reached if apiRequest throws on !response.ok
-                dom.loginErrorMessage.textContent = data.message || "Login failed. Please try again.";
+                dom.loginErrorMessage.textContent = data.message || "Login failed.";
                 dom.loginErrorMessage.classList.remove('hidden');
-                showToast(data.message || "Login failed.", true);
+                // showToast already handled by apiRequest for error
             }
         } catch (error) {
-             // Error already shown by apiRequest, but specific login error message can be set here
             dom.loginErrorMessage.textContent = error.message || "Login failed due to a server error.";
             dom.loginErrorMessage.classList.remove('hidden');
         }
@@ -220,79 +196,63 @@ const CreationHubApp = (() => {
             if (data.success) {
                 showToast('Logout successful!');
             } else {
-                showToast(data.message || 'Logout failed.', true);
+                // showToast already handled by apiRequest for error
             }
         } catch (error) {
-            // Error already shown by apiRequest
+            // Error already shown
         } finally {
             currentUser = null;
-            myPrograms = []; // Clear programs on logout
-            updateUIAfterLogout();
-            renderProgramList(); // Re-render to show empty state or login prompt
+            updateUIForAuthChange();
+            // Program list remains public, no need to clear `myPrograms` here unless we want to force a re-fetch
+            // which fetchPrograms() will do if called by updateUIForAuthChange or init.
         }
     }
 
-    function updateUIAfterLogin() {
-        if (!currentUser) return;
-        dom.loginButton.classList.add('hidden');
-        dom.logoutButton.classList.remove('hidden');
-        if(dom.loggedInUserDisplay) dom.loggedInUserDisplay.textContent = `Logged in as: ${currentUser.username}`;
+    function updateUIForAuthChange() {
+        if (currentUser) {
+            dom.loginButton.classList.add('hidden');
+            dom.logoutButton.classList.remove('hidden');
+            dom.loggedInUserDisplay.textContent = `Logged in as: ${currentUser.username}${currentUser.isAdmin ? ' (Admin)' : ''}`;
 
-        dom.authRequiredElements.forEach(el => el.classList.remove('hidden'));
-        // Enable drag-and-drop if it was disabled
-        if (sortableInstance) sortableInstance.option("disabled", false);
-        renderProgramList(); // Re-render to show action buttons on cards
+            if (currentUser.isAdmin) {
+                dom.adminRequiredElements.forEach(el => el.classList.remove('hidden'));
+                if (sortableInstance) sortableInstance.option("disabled", false);
+            } else { // Logged in but not admin
+                dom.adminRequiredElements.forEach(el => el.classList.add('hidden'));
+                if (sortableInstance) sortableInstance.option("disabled", true);
+            }
+        } else { // Logged out
+            dom.loginButton.classList.remove('hidden');
+            dom.logoutButton.classList.add('hidden');
+            dom.loggedInUserDisplay.textContent = '';
+            dom.adminRequiredElements.forEach(el => el.classList.add('hidden'));
+            if (sortableInstance) sortableInstance.option("disabled", true);
+            closeAddEditModal(); // Close admin modal if open
+        }
+        renderProgramList(); // Re-render to show/hide card actions based on admin status
     }
 
-    function updateUIAfterLogout() {
-        dom.loginButton.classList.remove('hidden');
-        dom.logoutButton.classList.add('hidden');
-        if(dom.loggedInUserDisplay) dom.loggedInUserDisplay.textContent = '';
-        myPrograms = []; // Clear programs array
-        renderProgramList(); // Render empty list or prompt to log in
-
-        dom.authRequiredElements.forEach(el => el.classList.add('hidden'));
-        // Disable drag-and-drop
-        if (sortableInstance) sortableInstance.option("disabled", true);
-
-        closeAddEditModal(); // Close any open modals that require auth
-    }
-
-
-    // --- PROGRAM DATA MANAGEMENT (Now via API) ---
+    // --- PROGRAM DATA MANAGEMENT (Public Fetch, Admin Edit) ---
     async function fetchPrograms() {
-        if (!currentUser) {
-            myPrograms = [];
-            renderProgramList();
-            return;
-        }
         try {
             const data = await apiRequest(`${PROGRAMS_API}?action=fetch`, 'GET');
             if (data.success) {
                 myPrograms = data.programs || [];
             } else {
                 myPrograms = [];
-                showToast(data.message || 'Could not fetch programs.', true);
+                // showToast handled by apiRequest
             }
         } catch (error) {
             myPrograms = [];
-            // Error toast is already handled by apiRequest
         }
-        renderProgramList();
+        renderProgramList(); // Always render, even if empty or error
     }
-
 
     // --- RENDERING ---
     function renderProgramList() {
         dom.programListContainer.innerHTML = '';
-        if (!currentUser) {
-             dom.emptyStateMessage.textContent = "Please log in to see your Creation Hub.";
-             dom.emptyStateMessage.classList.remove('hidden');
-             return;
-        }
-
         if (myPrograms.length === 0) {
-            dom.emptyStateMessage.textContent = 'Your hub is empty. Click "Add New" to get started!';
+            dom.emptyStateMessage.textContent = 'The Creation Hub is currently empty. An administrator can add new items.';
             dom.emptyStateMessage.classList.remove('hidden');
         } else {
             dom.emptyStateMessage.classList.add('hidden');
@@ -303,8 +263,8 @@ const CreationHubApp = (() => {
             card.className = 'program-card';
             card.setAttribute('data-id', program.id);
 
-            // Card actions (Edit, Delete) - only if logged in
-            if (currentUser) {
+            // Card actions (Edit, Delete) - only if admin
+            if (currentUser && currentUser.isAdmin) {
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'card-actions';
                 const editButton = document.createElement('button');
@@ -322,10 +282,9 @@ const CreationHubApp = (() => {
                 card.appendChild(actionsDiv);
             }
 
-
             const iconPlaceholder = document.createElement('div');
             iconPlaceholder.className = 'program-icon-placeholder';
-            iconPlaceholder.innerHTML = getIconSVG(program.iconType);
+            iconPlaceholder.innerHTML = getIconSVG(program.icon_type); // Use snake_case from DB
 
             const infoDiv = document.createElement('div');
             infoDiv.className = 'p-6 flex flex-col flex-grow';
@@ -340,23 +299,18 @@ const CreationHubApp = (() => {
             launchButton.innerHTML = '<i class="fas fa-play mr-2"></i>Open';
             launchButton.onclick = (e) => { e.stopPropagation(); openProgramLink(program); };
 
-
             infoDiv.appendChild(name);
             infoDiv.appendChild(description);
             infoDiv.appendChild(launchButton);
-            card.appendChild(iconPlaceholder); // Icon added after actions
+            card.appendChild(iconPlaceholder);
             card.appendChild(infoDiv);
             dom.programListContainer.appendChild(card);
         });
-        // No direct save to LocalStorage here; saving is per-action via API
     }
 
     // --- MODAL HANDLING & URL OPENING ---
-    /**
-     * Opens the program's launch command (URL) in a new tab. (Unchanged logic, just context)
-     */
-    function openProgramLink(program) {
-        if (program && program.launch_command && program.launch_command.trim() !== "") { // field name from DB
+    function openProgramLink(program) { // launch_command from DB
+        if (program && program.launch_command && program.launch_command.trim() !== "") {
             let url = program.launch_command.trim();
             if (!url.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:/i) && !url.startsWith('//')) {
                 url = 'https://' + url;
@@ -367,18 +321,17 @@ const CreationHubApp = (() => {
                     showToast('Popup blocked. Please allow popups for this site.', true);
                 }
             } catch (e) {
-                console.error("Error opening URL:", e, "URL was:", url);
-                showToast(`Could not open URL: '${url}'. Check the address.`, true);
+                showToast(`Could not open URL: '${url}'. Check address.`, true);
             }
         } else {
-            showToast("Launch command is empty or invalid. Please provide a URL.", true);
+            showToast("Launch command is empty or invalid.", true);
         }
     }
 
     function openAddEditModal(mode, programId = null) {
-        if (!currentUser) {
-            showToast("Please log in to manage programs.", true);
-            openLoginModal();
+        if (!currentUser || !currentUser.isAdmin) {
+            showToast("Administrator access required to manage programs.", true);
+            if (!currentUser) openLoginModal(); // Prompt login if not logged in at all
             return;
         }
         dom.addEditForm.reset();
@@ -391,11 +344,10 @@ const CreationHubApp = (() => {
                 dom.programIdInput.value = program.id;
                 dom.programNameInput.value = program.name;
                 dom.programDescriptionInput.value = program.description;
-                dom.programLaunchCommandInput.value = program.launch_command; // DB field name
-                dom.programIconTypeInput.value = program.iconType || program.icon_type; // DB field name
+                dom.programLaunchCommandInput.value = program.launch_command; // from DB
+                dom.programIconTypeInput.value = program.icon_type; // from DB
             } else {
-                showToast("Error: Program not found for editing.", true);
-                return;
+                showToast("Error: Program not found for editing.", true); return;
             }
         } else {
             dom.modalTitle.textContent = 'Add New Program';
@@ -414,74 +366,55 @@ const CreationHubApp = (() => {
     }
     function closeLoginModal() { dom.loginModal.classList.remove('active'); }
 
-
-    // --- CRUD OPERATIONS via API ---
+    // --- CRUD OPERATIONS (Admin Only for Write Ops) ---
     async function handleAddEditFormSubmit(event) {
         event.preventDefault();
-        if (!currentUser) {
-            showToast("Please log in to save programs.", true);
-            openLoginModal();
-            return;
+        if (!currentUser || !currentUser.isAdmin) {
+            showToast("Administrator access required.", true); return;
         }
-
-        const id = dom.programIdInput.value; // Will be empty for 'add'
+        const id = dom.programIdInput.value;
         const name = dom.programNameInput.value.trim();
         const description = dom.programDescriptionInput.value.trim();
+        // Ensure field names match what PHP API expects for $data keys (camelCase)
         const launchCommand = dom.programLaunchCommandInput.value.trim();
         const iconType = dom.programIconTypeInput.value;
 
-        if (!name || !launchCommand) { // Description can be optional
-            showToast("Please fill in Name and Launch URL.", true);
-            return;
+        if (!name || !launchCommand) {
+            showToast("Name and Launch URL are required.", true); return;
         }
-
+        // Program data matches expected keys in PHP's handleAdd/UpdateProgram
         const programData = { name, description, launchCommand, iconType };
         let url, method;
 
-        if (id) { // Editing existing program
-            programData.id = id; // Pass id for update to ensure correct item is updated
-            url = `${PROGRAMS_API}?action=update&id=${id}`;
-            method = 'POST'; // Or PUT
-        } else { // Adding new program
-            // ID will be generated by backend if not provided, or we can generate one
-            // programData.id = `prog_${Date.now()}`; // Or let backend handle ID
-            url = `${PROGRAMS_API}?action=add`;
-            method = 'POST';
+        if (id) {
+            programData.id = id;
+            url = `${PROGRAMS_API}?action=update&id=${id}`; method = 'POST';
+        } else {
+            url = `${PROGRAMS_API}?action=add`; method = 'POST';
         }
-
         try {
             const data = await apiRequest(url, method, programData);
             if (data.success) {
-                showToast(id ? "Program updated successfully!" : "Program added successfully!");
-                fetchPrograms(); // Refresh the list from server
+                showToast(data.message || (id ? "Program updated!" : "Program added!"));
+                fetchPrograms(); // Refresh public list
                 closeAddEditModal();
-            } else {
-                showToast(data.message || `Could not ${id ? 'update' : 'add'} program.`, true);
-            }
-        } catch (error) {
-            // Error already shown by apiRequest
-        }
+            } // else: error toast handled by apiRequest
+        } catch (error) { /* Handled by apiRequest */ }
     }
 
     async function deleteProgram(programId) {
-        if (!currentUser) {
-            showToast("Please log in to delete programs.", true);
-            openLoginModal();
-            return;
+        if (!currentUser || !currentUser.isAdmin) {
+            showToast("Administrator access required.", true); return;
         }
         const program = myPrograms.find(p => p.id === programId);
-        if (confirm(`Are you sure you want to delete "${program ? program.name : 'this program'}"? This cannot be undone.`)) {
+        if (confirm(`Are you sure you want to delete "${program ? program.name : 'this program'}"?`)) {
             try {
-                const data = await apiRequest(`${PROGRAMS_API}?action=delete&id=${programId}`, 'POST'); // Or DELETE
+                const data = await apiRequest(`${PROGRAMS_API}?action=delete&id=${programId}`, 'POST');
                 if (data.success) {
-                    showToast("Program deleted.");
-                    fetchPrograms(); // Refresh list
-                } else {
-                    showToast(data.message || "Could not delete program.", true);
-                }
-            } catch (error) {
-                // Error already shown by apiRequest
-            }
+                    showToast(data.message || "Program deleted.");
+                    fetchPrograms();
+                } // else: error toast handled by apiRequest
+            } catch (error) { /* Handled by apiRequest */ }
         }
     }
 
@@ -492,51 +425,40 @@ const CreationHubApp = (() => {
             sortableInstance = new Sortable(dom.programListContainer, {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
-                disabled: !currentUser, // Initially disable if not logged in
+                disabled: !(currentUser && currentUser.isAdmin), // Enable only if admin
                 onEnd: async function (evt) {
-                    if (!currentUser) return; // Should not happen if disabled
+                    if (!currentUser || !currentUser.isAdmin) return;
 
-                    // Update local array order immediately for responsiveness
-                    const movedProgram = myPrograms.splice(evt.oldIndex, 1)[0];
-                    myPrograms.splice(evt.newIndex, 0, movedProgram);
-                    // Re-render with new local order. Optional, server will send definitive order.
-                    // renderProgramList();
+                    const tempOrderedPrograms = Array.from(dom.programListContainer.children).map(card => {
+                        const id = card.getAttribute('data-id');
+                        return myPrograms.find(p => p.id === id);
+                    }).filter(p => p); // Filter out undefined if any card somehow has no matching program
+
+                    // Update myPrograms array to reflect the new visual order
+                    myPrograms = tempOrderedPrograms;
 
                     const orderedIds = myPrograms.map(p => p.id);
+
                     try {
                         const data = await apiRequest(`${PROGRAMS_API}?action=reorder`, 'POST', { orderedIds });
                         if (data.success) {
-                            showToast("Order saved to server!");
-                            // Optionally fetchPrograms() here to ensure sync,
+                            showToast(data.message || "Order saved!");
+                            // Optional: fetchPrograms() to get definitive server order,
                             // but optimistic update is usually fine.
-                        } else {
-                            showToast(data.message || "Could not save order.", true);
-                            fetchPrograms(); // Re-fetch to correct potential mismatch
-                        }
-                    } catch (error) {
-                        fetchPrograms(); // Re-fetch on error
-                    }
+                        } else { fetchPrograms(); /* Re-fetch to correct order on failure */ }
+                    } catch (error) { fetchPrograms(); /* Re-fetch on error */ }
                 }
             });
         }
     }
 
-    async function exportData() {
-        if (!currentUser) {
-            showToast("Please log in to export data.", true);
-            openLoginModal();
-            return;
-        }
+    async function exportData() { // Publicly accessible
         if (myPrograms.length === 0) {
-            showToast("Nothing to export. Add some programs first!", true);
-            return;
+            showToast("Nothing to export.", true); return;
         }
         try {
-            // The programs_api.php for export directly returns the JSON array string
-            const jsonData = await apiRequest(`${PROGRAMS_API}?action=export`, 'GET');
-            // jsonData here is already a string because apiRequest handles non-JSON responses as text.
-            // If it were parsed JSON, it would be: const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
-            const blob = new Blob([jsonData], { type: 'application/json' });
+            const jsonDataString = await apiRequest(`${PROGRAMS_API}?action=export`, 'GET');
+            const blob = new Blob([jsonDataString], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -546,17 +468,14 @@ const CreationHubApp = (() => {
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
             showToast("Data exported successfully!");
-        } catch (error) {
-            showToast("Could not export data.", true);
-        }
+        } catch (error) { /* Handled by apiRequest */ }
     }
 
-    function importData(event) {
-        if (!currentUser) {
-            showToast("Please log in to import data.", true);
-            openLoginModal();
-            event.target.value = ''; // Reset file input
-            return;
+    function importData(event) { // Admin only
+        if (!currentUser || !currentUser.isAdmin) {
+            showToast("Administrator access required to import.", true);
+            if (!currentUser) openLoginModal();
+            event.target.value = ''; return;
         }
         const file = event.target.files[0];
         if (file) {
@@ -564,49 +483,34 @@ const CreationHubApp = (() => {
             reader.onload = async function(e) {
                 try {
                     const importedRawData = JSON.parse(e.target.result);
-                    // The backend expects an object like { "programs": [...] }
-                    // If your JSON file is just an array, wrap it.
-                    let programsToImport;
-                    if (Array.isArray(importedRawData)) {
-                        programsToImport = importedRawData;
-                    } else if (importedRawData && Array.isArray(importedRawData.programs)) {
-                        programsToImport = importedRawData.programs;
-                    } else {
-                         showToast("Invalid file format. Expected a JSON array of programs or an object {programs: [...]}.", true);
-                         return;
-                    }
+                    let programsToImport = Array.isArray(importedRawData) ? importedRawData : (importedRawData.programs || []);
 
-
-                    if (confirm("Importing this file will replace your current program list on the server with the content of this file. Are you sure?")) {
+                    if (confirm("ADMIN ACTION: Importing this file will REPLACE the current public program list on the server. Are you sure?")) {
                         const data = await apiRequest(`${PROGRAMS_API}?action=import`, 'POST', { programs: programsToImport });
                         if (data.success) {
                             showToast(data.message || "Data imported successfully!");
-                            fetchPrograms(); // Refresh list from server
-                        } else {
-                            showToast(data.message || "Import failed.", true);
-                        }
+                            fetchPrograms();
+                        } // else: error handled by apiRequest
                     }
-                } catch (error) {
-                    console.error("Error importing data:", error);
-                    showToast(error.message || "Error reading or parsing the file. Make sure it's valid JSON.", true);
+                } catch (errorParsing) {
+                    showToast(errorParsing.message || "Error reading/parsing file.", true);
                 } finally {
-                    dom.importFileInput.value = ''; // Reset file input
+                    dom.importFileInput.value = '';
                 }
             };
             reader.readAsText(file);
         }
     }
 
-
-    /**
-     * Handles pre-filling form fields from a selected file. (Largely unchanged)
-     */
-    function preFillFormFromFile(event) {
+    function preFillFormFromFile(event) { // Admin context for opening add/edit modal
+        if (!currentUser || !currentUser.isAdmin) {
+            showToast("Administrator access required.", true); return;
+        }
         const file = event.target.files[0];
         if (file) {
             const fileNameWithoutExtension = file.name.split('.').slice(0, -1).join('.') || file.name;
             dom.programNameInput.value = fileNameWithoutExtension;
-            dom.programLaunchCommandInput.value = file.name; // User still needs to change this to URL
+            dom.programLaunchCommandInput.value = file.name;
             showToast("Fields pre-filled. REPLACE Launch Command with a valid URL.", false);
         }
         dom.programFileInputForPreFill.value = '';
@@ -614,28 +518,34 @@ const CreationHubApp = (() => {
 
     // --- EVENT LISTENERS ---
     function bindEventListeners() {
-        dom.addNewProgramButton.onclick = () => openAddEditModal('add');
+        dom.addNewProgramButton.onclick = () => openAddEditModal('add'); // Admin check inside openAddEditModal
         dom.cancelAddEditButton.onclick = closeAddEditModal;
-        dom.addEditForm.onsubmit = handleAddEditFormSubmit;
-
+        dom.addEditForm.onsubmit = handleAddEditFormSubmit; // Admin check inside submit handler
         dom.helpButton.onclick = showHelpModal;
         dom.closeHelpModalButton.onclick = closeHelpModal;
-
-        dom.exportDataButton.onclick = exportData;
-        dom.importDataButtonTrigger.onclick = () => dom.importFileInput.click(); // Changed ID
-        dom.importFileInput.onchange = importData;
-
-        dom.selectFileForPreFillButton.onclick = () => dom.programFileInputForPreFill.click();
+        dom.exportDataButton.onclick = exportData; // Public
+        dom.importDataButtonTrigger.onclick = () => { // Admin check inside importData
+            if (!currentUser || !currentUser.isAdmin) {
+                showToast("Administrator access required.", true);
+                if (!currentUser) openLoginModal();
+                return;
+            }
+            dom.importFileInput.click();
+        };
+        dom.importFileInput.onchange = importData; // Admin check inside importData
+        dom.selectFileForPreFillButton.onclick = () => { // Admin check inside preFill
+             if (!currentUser || !currentUser.isAdmin) {
+                showToast("Administrator access required.", true);
+                if (!currentUser) openLoginModal();
+                return;
+             }
+            dom.programFileInputForPreFill.click();
+        }
         dom.programFileInputForPreFill.onchange = preFillFormFromFile;
-
-        // Auth Listeners
         dom.loginButton.onclick = openLoginModal;
         dom.logoutButton.onclick = handleLogout;
         dom.loginForm.onsubmit = handleLogin;
         dom.cancelLoginButton.onclick = closeLoginModal;
-
-
-        // Global click listener for closing modals
         window.onclick = (event) => {
             if (event.target == dom.addEditModal) closeAddEditModal();
             if (event.target == dom.helpModal) closeHelpModal();
@@ -647,16 +557,13 @@ const CreationHubApp = (() => {
     async function init() {
         cacheDomElements();
         bindEventListeners();
-        updateUIAfterLogout(); // Set initial UI state to logged-out
-        await checkLoginStatus(); // Check login status and update UI accordingly
-        initializeDragAndDrop(); // Initialize drag and drop, will be enabled/disabled based on login
-        // Initial fetchPrograms is called within checkLoginStatus if successful
+        updateUIForAuthChange(); // Set initial UI (logged out state, hides admin elements)
+        await fetchPrograms();    // Fetch public programs first
+        await checkLoginStatus(); // Check login and update UI for admin if applicable
+        initializeDragAndDrop();  // Initialize, will be enabled/disabled based on admin status
     }
 
-    return {
-        init: init
-    };
+    return { init: init };
 })();
 
-// --- START THE APPLICATION ---
 window.onload = CreationHubApp.init;

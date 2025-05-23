@@ -17,18 +17,17 @@
                 <div>
                     <h1 class="text-3xl lg:text-4xl font-bold text-white">My Creation Hub</h1>
                     <p class="text-md lg:text-lg text-gray-400 mt-1 sm:mt-2">Your personalized project launcher.</p>
-                    <p id="loggedInUser" class="text-sm text-sky-400 mt-1"></p>
-                </div>
+                    <p id="loggedInUser" class="text-sm text-sky-400 mt-1"></p> </div>
                 <div class="flex flex-wrap gap-2 mt-4 sm:mt-0">
-                    <button id="addNewProgramButton" class="header-button bg-green-500 requires-auth hidden">
+                    <button id="addNewProgramButton" class="header-button bg-green-500 requires-admin hidden">
                         <i class="fas fa-plus"></i>Add New
                     </button>
-                    <button id="importDataButtonTrigger" class="header-button bg-yellow-500 requires-auth hidden">
+                    <button id="importDataButtonTrigger" class="header-button bg-yellow-500 requires-admin hidden">
                         <i class="fas fa-file-import"></i>Import
                     </button>
                     <input type="file" id="importFileInput" class="hidden" accept=".json">
-                    <button id="exportDataButton" class="header-button bg-yellow-500 requires-auth hidden">
-                        <i class="fas fa-file-export"></i>Export
+
+                    <button id="exportDataButton" class="header-button bg-yellow-500"> <i class="fas fa-file-export"></i>Export
                     </button>
                     <button id="helpButton" class="header-button bg-sky-500">
                         <i class="fas fa-question-circle"></i>Help
@@ -36,6 +35,7 @@
                     <a href="https://github.com/imamwahyudime/quick-webapp-launcher" target="_blank" id="aboutButton" class="header-button bg-purple-500 hover:bg-purple-600">
                         <i class="fas fa-info-circle"></i>About
                     </a>
+
                     <button id="loginButton" class="header-button bg-blue-500 hover:bg-blue-600">
                         <i class="fas fa-sign-in-alt"></i>Login
                     </button>
@@ -44,12 +44,12 @@
                     </button>
                 </div>
             </div>
-             <p class="text-sm text-gray-500 requires-auth hidden">Drag cards to reorder. Changes are saved to the server.</p>
+             <p class="text-sm text-gray-500 requires-admin hidden">Drag cards to reorder. Changes are saved to the server.</p>
         </header>
 
         <div id="program-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             </div>
-         <p id="emptyStateMessage" class="text-center text-gray-500 py-10 hidden">Your hub is empty or you are not logged in. Click "Add New" to get started if logged in!</p>
+         <p id="emptyStateMessage" class="text-center text-gray-500 py-10 hidden">The Creation Hub is currently empty. An administrator can add new items.</p>
     </div>
 
     <div id="addEditModal" class="modal">
@@ -100,32 +100,31 @@
             <h2 class="text-2xl font-semibold mb-4 text-center">Creation Hub Help</h2>
             <div class="space-y-3 text-sm mb-6">
                 <p>Welcome to your Creation Hub! This is your personal space to organize and quickly access all your projects by launching them as URLs.</p>
-                <p>You'll need to log in to manage your program entries. The data is now stored securely on a server.</p>
+                <p>This hub is publicly viewable. An administrator can log in to manage the program entries. All data is stored on a server.</p>
             </div>
             <h3 class="text-xl font-semibold mb-3">Understanding the "Launch Command (URL)"</h3>
             <div class="space-y-3 text-sm mb-6">
                 <p>The <strong>Launch Command</strong> field is used to specify the <strong>web URL</strong> that will be opened in a new browser tab when you click "Open" on a program card.</p>
                 <p>Simply enter the web address you want the card to link to. If you enter a URL like <code>example.com</code>, the application will attempt to open <code>https://example.com</code>. For local development URLs like <code>http://localhost:3000</code>, include the <code>http://</code> part.</p>
-                <p><strong>Examples of valid Launch Commands (URLs):</strong></p>
-                <ul class="list-disc list-inside space-y-1 mt-1">
-                    <li><code>https://www.google.com</code></li>
-                    <li><code>developer.mozilla.org</code></li>
-                    <li><code>wikipedia.org/wiki/Web_application</code></li>
-                    <li><code>http://localhost:8080</code></li>
-                    <li><code>mailto:user@example.com</code> (for email links)</li>
-                </ul>
-                <p>When you use the "Select File to Pre-fill Name" option, it will put the filename in the "Program Name" and "Launch Command" fields. <strong>You will need to manually replace the filename in the "Launch Command (URL)" field with the actual URL you want to open.</strong></p>
             </div>
-            <h3 class="text-xl font-semibold mb-3 mt-6">Other Features (when logged in):</h3>
+            <h3 class="text-xl font-semibold mb-3 mt-6">Key Features:</h3>
+            <div class="space-y-3 text-sm">
+                <ul class="list-disc list-inside space-y-1">
+                    <li><strong>Viewing Programs:</strong> Anyone can view the list of programs and open their URLs.</li>
+                    <li><strong>Exporting:</strong> Anyone can export the current list of programs as a JSON file.</li>
+                    <li><strong>Admin Login:</strong> Administrators can log in to manage the hub.</li>
+                </ul>
+            </div>
+            <h4 class="text-lg font-semibold mb-2 mt-4">Admin-Only Features:</h4>
             <div class="space-y-3 text-sm">
                 <ul class="list-disc list-inside space-y-1">
                     <li><strong>Adding Programs:</strong> Click "Add New". Fill in the details, ensuring the "Launch Command (URL)" is a valid web address.</li>
                     <li><strong>Editing Programs:</strong> Click the <i class="fas fa-pencil-alt text-blue-300"></i> icon on a card.</li>
                     <li><strong>Deleting Programs:</strong> Click the <i class="fas fa-trash-alt text-red-400"></i> icon on a card.</li>
                     <li><strong>Reordering:</strong> Drag and drop cards. The order is saved automatically to the server.</li>
-                    <li><strong>Saving Data:</strong> All your programs are saved on the server, linked to your account.</li>
-                    <li><strong>Export/Import:</strong> Use the "Export" button to save your program list as a <code>.json</code> file. Use "Import" to load a previously exported <code>.json</code> file. Importing will replace your current list on the server.</li>
+                    <li><strong>Importing:</strong> Use "Import" to load a previously exported <code>.json</code> file. Importing will replace the current list on the server.</li>
                 </ul>
+                <p class="mt-2">When an admin uses the "Select File to Pre-fill Name" option, it will put the filename in the "Program Name" and "Launch Command" fields. <strong>The admin will need to manually replace the filename in the "Launch Command (URL)" field with the actual URL to open.</strong></p>
             </div>
             <div class="flex justify-end mt-8">
                 <button id="closeHelpModalButton" class="form-button modal-close-button">Got it!</button>
@@ -135,8 +134,7 @@
 
     <div id="loginModal" class="modal">
         <div class="modal-content">
-            <h2 class="text-2xl font-semibold mb-6 text-center">Login to Creation Hub</h2>
-            <form id="loginForm">
+            <h2 class="text-2xl font-semibold mb-6 text-center">Admin Login</h2> <form id="loginForm">
                 <div id="loginErrorMessage" class="text-red-400 text-sm mb-4 hidden"></div>
                 <div>
                     <label for="usernameInput" class="form-label">Username:</label>
